@@ -13,7 +13,7 @@ export default {
       return message.reply('Song requests recording is not enabled');
     }
 
-    const count = Number(args?.[0]) || 10;
+    const count = Number(args?.[0]) || 20;
     const guildId = message.guildId;
 
     const repo = AppDataSource.getRepository(SongRequest);
