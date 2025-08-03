@@ -3,7 +3,7 @@ export const YOUTUBE_REGEX =
 export const SPOTIFY_REGEX =
   /^(https:\/\/open.spotify.com\/|spotify:)([a-zA-Z0-9]+)(.*)$/;
 export const SPOTIFY_TRACK_REGEX =
-  /^https:\/\/open\.spotify\.com\/track\/([0-9A-Za-z]+)/;
+  /^https:\/\/open\.spotify\.com\/(?:intl-[a-z]{2}\/)?track\/([0-9A-Za-z]+)/;
 export const SPOTIFY_ARTIST_REGEX =
   /^https:\/\/open\.spotify\.com\/artist\/([0-9A-Za-z]+)/;
 
