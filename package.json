@@ -9,7 +9,8 @@
     "tsc-watch": "tsc --watch --preserveWatchOutput",
     "nodemon": "nodemon dist/index.js",
     "watch": "pnpm build && concurrently -k npm:tsc-watch npm:nodemon",
-    "auth": "ts-node src/utils/auth.ts"
+    "auth": "ts-node src/utils/auth.ts",
+    "migrate": "tsc && typeorm migration:run -d dist/db/index.js"
   },
   "keywords": [],
   "author": "",

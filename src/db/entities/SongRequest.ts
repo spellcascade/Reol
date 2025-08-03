@@ -29,7 +29,7 @@ export class SongRequest {
   @Column()
   guildId: string;
 
-  @Column({ nullable: true })
+  @Column({ nullable: true, default: null })
   spotifyId?: string;
 
   @CreateDateColumn({ type: 'datetime', default: () => 'CURRENT_TIMESTAMP' })

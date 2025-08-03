@@ -6,16 +6,19 @@ export async function saveSongRequest({
   guildId,
   url,
   title,
+  spotifyId,
 }: {
   url: string;
   title: string;
   authorId: string;
   guildId: string;
+  spotifyId?: string;
 }) {
   await AppDataSource.manager.save(SongRequest, {
     url,
     title,
     requestedBy: authorId,
     guildId,
+    spotifyId,
   });
 }
