@@ -48,11 +48,13 @@ export default {
       track.requestedBy = message.author.displayName;
 
       if (ENV.USE_DB) {
+        const spotifyId = track.metadata?.spotifyTrackId;
         await saveSongRequest({
           url: track.url,
           title: track.title,
           authorId: message.author.id,
           guildId,
+          ...(spotifyId && { spotifyId }),
         });
       }
 
