@@ -74,7 +74,7 @@ export default {
         throw new Error(`Unable to get spotify track for ${spotifyTrackId}`);
       }
 
-      const similarTracks = await getSimilarTracks(spotifyTrackId, guildId);
+      const similarTracks = await getSimilarTracks(spotifyTrackId);
       const tracks = similarTracks.map((t) => ({
         spotifyId: t.id,
         title: t.title,

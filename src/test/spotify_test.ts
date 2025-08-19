@@ -12,7 +12,7 @@ async function main() {
     const id = url.match(SPOTIFY_TRACK_REGEX)?.[1];
     if (!id) throw new Error('Invalid Spotify track URL');
 
-    const tracks = await getSimilarTracks(id, '1');
+    const tracks = await getSimilarTracks(id);
 
     for (const track of tracks) {
       console.log(

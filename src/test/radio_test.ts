@@ -5,7 +5,7 @@ import { RadioSession } from '../interfaces/RadioSession';
 async function main() {
   await AppDataSource.initialize();
 
-  const tracks = await getSimilarTracks('6wVWJl64yoTzU27EI8ep20', '1');
+  const tracks = await getSimilarTracks('6wVWJl64yoTzU27EI8ep20');
 
   const radio = new RadioSession(
     tracks.map((t) => ({

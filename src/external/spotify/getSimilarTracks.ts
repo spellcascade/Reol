@@ -1,50 +1,24 @@
 import { getBannedArtists } from '../../db/methods/getBannedArtists';
-import { getSongRequestsByGuild } from '../../db/methods/getSongRequests';
 import { removeTrackDuplicates } from '../../utils/removeArrayDuplicates';
 import { getRecommendations } from '../misc/getRecommendations';
 import { TrackDetails, getTrackDetails } from './getTrackDetails';
 import { getSpotifyTrackTitle } from './utils/getSpotifyTrackTitle';
 
-async function getNormalizedSongStats(guildId: string) {
-  const requests = await getSongRequestsByGuild(guildId);
-
-  const freqMap = new Map<string, number>();
-  for (const r of requests) {
-    const key = `${r.name}::${r.artist}`;
-    freqMap.set(key, (freqMap.get(key) ?? 0) + 1);
-  }
-
-  return freqMap;
-}
-
-function scoreTrack(track: SpotifyTrack, freqMap: Map<string, number>): number {
-  const title = track.name || '';
-  const artistStr = track?.artists?.map((a) => a.name).join(', ') || '';
-  const key = `${title}::${artistStr}`;
-
-  return freqMap.get(key) ?? 0;
-}
-
 export interface SpotifyTrack extends TrackDetails {
   title: string;
 }
 
-export async function getSimilarTracks(
-  id: string,
-  guildId: string
-): Promise<SpotifyTrack[]> {
+export async function getSimilarTracks(id: string): Promise<SpotifyTrack[]> {
   try {
     const trackDetails = await getTrackDetails(id);
     if (!trackDetails) throw new Error(`Unable to get track details for ${id}`);
 
     const recommendations = await getRecommendations({
       seedTrackId: id,
-      popularity: trackDetails.popularity,
-      limit: 100,
+      limit: 40,
     });
 
     const bannedArtists = await getBannedArtists();
-    const freqMap = await getNormalizedSongStats(guildId);
 
     const tracks = recommendations
       .filter((t: any) => {
@@ -60,7 +34,7 @@ export async function getSimilarTracks(
         name: t.name,
       })) as SpotifyTrack[];
 
-    const withSeed: SpotifyTrack[] = [
+    const res: SpotifyTrack[] = [
       {
         id: trackDetails.id,
         title: getSpotifyTrackTitle(trackDetails),
@@ -68,10 +42,10 @@ export async function getSimilarTracks(
         popularity: trackDetails.popularity,
         name: trackDetails.name,
       },
-      ...tracks.sort((a, b) => scoreTrack(b, freqMap) - scoreTrack(a, freqMap)),
+      ...tracks,
     ];
 
-    const uniqueTracks = removeTrackDuplicates(withSeed);
+    const uniqueTracks = removeTrackDuplicates(res);
     return uniqueTracks.slice(0, 30);
   } catch (error) {
     throw error;

@@ -26,11 +26,9 @@ export interface RecommendationsResponse {
 export async function getRecommendations({
   limit,
   seedTrackId,
-  popularity,
 }: {
   seedTrackId: string;
   limit: number;
-  popularity: number;
 }): Promise<Track[]> {
   try {
     const response = await axios.get(
@@ -38,7 +36,6 @@ export async function getRecommendations({
       {
         params: {
           seed_tracks: seedTrackId,
-          min_popularity: popularity - 10,
           limit,
         },
         headers: {
