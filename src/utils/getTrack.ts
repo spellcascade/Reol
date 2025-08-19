@@ -16,7 +16,7 @@ export async function getTrack(query: string): Promise<Track> {
     }
 
     if (isSpotify) {
-      return await getSpotifyTrack(query, true);
+      return await getSpotifyTrack(query);
     }
 
     return getYoutubeTrackByQuery(query);

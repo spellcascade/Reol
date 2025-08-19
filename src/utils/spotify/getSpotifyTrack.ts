@@ -3,12 +3,8 @@ import { Track } from '../../interfaces/Track';
 import { getYoutubeTrackByQuery } from '../youtube/getYoutubeTrack';
 import { SPOTIFY_TRACK_REGEX } from '../helpers';
 import { getTrackDetails } from '../../external/spotify/getTrackDetails';
-import { isLikelyEnglish } from '../isLikelyEnglish';
 
-export async function getSpotifyTrack(
-  url: string,
-  lyrics?: boolean
-): Promise<Track> {
+export async function getSpotifyTrack(url: string): Promise<Track> {
   return retry(
     async () => {
       try {
@@ -22,12 +18,7 @@ export async function getSpotifyTrack(
         const artist = details?.artists?.[0]?.name || '';
         const title = details?.name || '';
 
-        let query = `${artist} - ${title}`;
-        if (lyrics && isLikelyEnglish(query)) {
-          query += ' lyrics';
-        }
-
-        const track = await getYoutubeTrackByQuery(query);
+        const track = await getYoutubeTrackByQuery(`${artist} - ${title}`);
 
         return {
           ...track,
