@@ -7,6 +7,7 @@ import { getSimilarTracks } from '../external/spotify/getSimilarTracks';
 export default {
   name: 'similar',
   description: 'Show similar spotify tracks',
+  disabled: true,
   async execute(client, message, args) {
     try {
       const guildId = message.guildId;
