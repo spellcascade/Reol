@@ -60,7 +60,7 @@ client.on('ready', async () => {
 });
 
 client.on('messageCreate', async (message) => {
-  if (message.author.bot) return;
+  if (message.author.bot && message.webhookId === null) return;
 
   if (
     YOUTUBE_REGEX.test(message.content) ||
