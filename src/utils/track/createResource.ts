@@ -1,4 +1,4 @@
-import { createAudioResource, demuxProbe } from '@discordjs/voice';
+import { createAudioResource, StreamType } from '@discordjs/voice';
 import appRootPath from 'app-root-path';
 import { spawn } from 'child_process';
 
@@ -14,7 +14,7 @@ export async function createResource(url: string) {
         '--cookies',
         cookiesPath,
         '--format',
-        'bestaudio/best',
+        'bestaudio[acodec=opus]/bestaudio',
         '--limit-rate',
         '800K',
         '-o',
@@ -35,9 +35,8 @@ export async function createResource(url: string) {
     const stdout = process.stdout;
     if (!stdout) throw new Error('No stream found');
 
-    const { stream, type } = await demuxProbe(stdout);
-    const resource = createAudioResource(stream, {
-      inputType: type,
+    const resource = createAudioResource(stdout, {
+      inputType: StreamType.WebmOpus,
     });
 
     return resource;
