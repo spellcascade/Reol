@@ -36,3 +36,13 @@ export function isPlaylist(url: string): boolean {
 
 export const DEFAULT_COLOR = '#504A64';
 export const DEFAULT_THUMBNAIL = 'https://iili.io/HO91F8Q.jpg';
+
+export function getYtPlaylistId(url: string) {
+  const regExp = /^.*(youtu.be\/|list=)([^#\&\?]*).*/;
+  const match = url.match(regExp);
+
+  if (match && match[2]) {
+    return match[2];
+  }
+  return null;
+}

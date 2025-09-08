@@ -36,7 +36,6 @@ specifiers:
   ts-node: ^10.9.1
   typeorm: ^0.3.15
   typescript: 5.2.2
-  youtube-sr: ^4.3.4
   youtubei.js: ^10.5.0
   yt-search: ^2.11.1
 
@@ -63,7 +62,6 @@ dependencies:
   transliteration: 2.3.5
   ts-jest: 29.3.2_df7ucliaobjkqulprdmdbm3mmm
   typeorm: 0.3.22_ngtcoji5vdlcmdctvcyb6kcxau
-  youtube-sr: 4.3.11
   youtubei.js: 10.5.0
   yt-search: 2.12.1
 
@@ -4718,10 +4716,6 @@ packages:
   /yocto-queue/0.1.0:
     resolution: {integrity: sha512-rVksvsnNCdJ/ohGc6xgPwyN8eheCxsiLM8mxuE/t/mOVqJewPuO1miLpTHQiRgTKCLexL4MeAFVagts7HmNZ2Q==}
     engines: {node: '>=10'}
-
-  /youtube-sr/4.3.11:
-    resolution: {integrity: sha512-3oHiS2x7PpMiDRW7Cq8nz1bkAIBOJHoOwkPl/oncM/+A9/3xxMDgMLGW2dsBEP1DHFyRXYTVABgfbdwHF8sXXQ==}
-    dev: false
 
   /youtubei.js/10.5.0:
     resolution: {integrity: sha512-iyA+VF28c15tCCKH9ExM2RKC3zYiHzA/eixGlJ3vERANkuI+xYKzAZ4vtOhmyqwrAddu88R/DkzEsmpph5NWjg==}

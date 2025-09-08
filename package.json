@@ -38,7 +38,6 @@
     "transliteration": "^2.3.5",
     "ts-jest": "^29.3.2",
     "typeorm": "^0.3.15",
-    "youtube-sr": "^4.3.4",
     "youtubei.js": "^10.5.0",
     "yt-search": "^2.11.1"
   },

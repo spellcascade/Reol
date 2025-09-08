@@ -1,8 +1,16 @@
 import getYouTubeID from 'get-youtube-id';
+import pLimit from 'p-limit';
 import { Innertube, Log } from 'youtubei.js';
 import { Track } from '../../interfaces/Track';
 import { formatDuration } from '../../utils/formatDuration';
 import { getYtCookiesString } from '../../utils/getYtCookiesString';
+import { getYtPlaylistId } from '../../utils/helpers';
+import {
+  PlaylistVideo,
+  ReelItem,
+  ShortsLockupView,
+} from 'youtubei.js/dist/src/parser/nodes';
+import { Playlist } from '../../utils/getPlaylist';
 
 export class YoutubeClient {
   client: Innertube;
@@ -78,6 +86,50 @@ export class YoutubeClient {
       };
     } catch (error) {
       console.log('Error byQuery', error);
+      throw error;
+    }
+  }
+
+  /**
+   * Fetches metadata and up to the first 100 tracks from a YouTube playlist URL.
+   *
+   * @param {string} url - The YouTube playlist URL.
+   * @returns {Promise<Playlist>} Resolves with a playlist object containing
+   *   the title, URL, and an array of track objects.
+   *
+   */
+  public async playlistByURL(url: string): Promise<Playlist> {
+    try {
+      const id = getYtPlaylistId(url);
+      if (!id) throw new Error('Invalid playlist url');
+
+      const res = await this.client.getPlaylist(id);
+      const videoIds: string[] = res.items
+        .map((item: PlaylistVideo | ReelItem | ShortsLockupView) => {
+          if (item.type === 'PlaylistVideo') {
+            return (item as any).id;
+          }
+
+          if (item.type === 'ShortsLockupView') {
+            return (item as any)?.on_tap_endpoint?.payload?.videoId;
+          }
+        })
+        .filter(Boolean);
+
+      const limit = pLimit(2);
+      const tasks = videoIds.map((id) =>
+        limit(() => this.byURL(`https://www.youtube.com/watch?v=${id}`))
+      );
+
+      const videos = await Promise.all(tasks);
+
+      return {
+        title: res.info.title || 'No title',
+        url: `https://www.youtube.com/playlist?list=${id}`,
+        tracks: videos.filter(Boolean) as Track[],
+      };
+    } catch (error) {
+      console.log('Error getPlaylist', error);
       throw error;
     }
   }

@@ -1,7 +1,7 @@
+import { YoutubeClient } from '../external/youtube/YoutubeClient';
 import { Track } from '../interfaces/Track';
 import { isSpotifyURL } from './helpers';
 import { getSpotifyPlaylist } from './spotify/getSpotifyPlaylist';
-import { getYoutubePlaylist } from './youtube/getYoutubePlaylist';
 
 export interface Playlist {
   title: string;
@@ -15,5 +15,6 @@ export async function getPlaylist(url: string): Promise<Playlist> {
     return getSpotifyPlaylist(url);
   }
 
-  return getYoutubePlaylist(url);
+  const yt = await YoutubeClient.create();
+  return yt.playlistByURL(url);
 }
