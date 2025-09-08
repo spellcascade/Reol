@@ -1,5 +1,5 @@
 import getYouTubeID from 'get-youtube-id';
-import { Innertube } from 'youtubei.js';
+import { Innertube, Log } from 'youtubei.js';
 import { Track } from '../../interfaces/Track';
 import { formatDuration } from '../../utils/formatDuration';
 import { getYtCookiesString } from '../../utils/getYtCookiesString';
@@ -9,6 +9,8 @@ export class YoutubeClient {
   private static instance: YoutubeClient | null = null;
 
   constructor(client: Innertube) {
+    Log.setLevel(Log.Level.NONE);
+
     this.client = client;
   }
 

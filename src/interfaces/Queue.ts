@@ -109,7 +109,8 @@ export class Queue {
               VoiceConnectionStatus.Ready,
               20_000
             );
-          } catch {
+          } catch (err) {
+            console.log('Error entering state:', err);
             if (
               this.connection.state.status !== VoiceConnectionStatus.Destroyed
             ) {
