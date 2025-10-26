@@ -19,4 +19,5 @@ export const ENV = {
   SPOTIFY_CLIENT_SECRET: process.env.SPOTIFY_CLIENT_SECRET as string,
   ADMINS: process.env.ADMINS?.split(',') || [],
   IS_PROD: process.env.NODE_ENV === 'production',
+  MAX_CACHE_SIZE_GB: Number(process.env.MAX_CACHE_SIZE_GB) || 1,
 };

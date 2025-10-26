@@ -4,6 +4,7 @@ import {
   Collection,
   Snowflake,
   TextChannel,
+  Options,
 } from 'discord.js';
 import { loadCommands } from './utils/loadCommands';
 import { Queue } from './interfaces/Queue';
@@ -33,6 +34,13 @@ const client = new Client({
     GatewayIntentBits.MessageContent,
     GatewayIntentBits.GuildVoiceStates,
   ],
+  makeCache: Options.cacheWithLimits({
+    MessageManager: 0,
+    ThreadManager: 0,
+    ReactionManager: 0,
+    GuildMemberManager: 50,
+    VoiceStateManager: 50,
+  }),
 }) as MyClient;
 
 client.commands = new Collection();

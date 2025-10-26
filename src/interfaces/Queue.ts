@@ -19,6 +19,7 @@ import { Track } from './Track';
 import { createResource } from '../utils/track/createResource';
 import { getTrack } from '../utils/getTrack';
 import { RadioSession } from './RadioSession';
+import { prefetchNext } from '../utils/track/cache/manager';
 
 const wait = promisify(setTimeout);
 
@@ -240,6 +241,11 @@ export class Queue {
   }
 
   public async processQueue(): Promise<void> {
+    const next = this.tracks[1];
+    if (next) {
+      prefetchNext(next.url);
+    }
+
     if (this.queueLock || this.player.state.status !== AudioPlayerStatus.Idle) {
       return;
     }
@@ -250,10 +256,9 @@ export class Queue {
 
     this.queueLock = true;
 
-    const next = this.tracks[0];
-
+    const current = this.tracks[0];
     try {
-      const resource = await createResource(next.url);
+      const resource = await createResource(current.url);
       if (!resource) throw new Error('No stream found');
 
       this.resource = resource;
