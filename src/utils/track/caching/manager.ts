@@ -128,8 +128,11 @@ async function runYtDlpDownload(url: string): Promise<void> {
 
       const tmpPath = path.join(CACHE_DIR, `${videoId}.part.opus`);
       const finalPath = path.join(CACHE_DIR, `${videoId}.opus`);
+      const cookiesPath = `${appRootPath}/cookies.txt`;
 
       const ytdlp = spawn('yt-dlp', [
+        '--cookies',
+        cookiesPath,
         '-x',
         '--audio-format',
         'opus',
