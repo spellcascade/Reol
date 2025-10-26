@@ -1,6 +1,6 @@
 import { createAudioResource, StreamType } from '@discordjs/voice';
 import fs from 'fs';
-import { cacheTrack } from './cache/manager';
+import { cacheTrack } from './caching/manager';
 
 export async function createResource(url: string) {
   try {

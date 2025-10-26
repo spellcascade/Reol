@@ -19,7 +19,7 @@ import { Track } from './Track';
 import { createResource } from '../utils/track/createResource';
 import { getTrack } from '../utils/getTrack';
 import { RadioSession } from './RadioSession';
-import { prefetchNext } from '../utils/track/cache/manager';
+import { prefetchNext } from '../utils/track/caching/manager';
 
 const wait = promisify(setTimeout);
 
