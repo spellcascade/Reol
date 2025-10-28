@@ -65,59 +65,27 @@ export async function cacheTrack(url: string): Promise<string> {
 
 async function cleanupCache() {
   try {
-    const files = fs
-      .readdirSync(CACHE_DIR)
-      .map((name) => {
+    const files = await fs.promises.readdir(CACHE_DIR);
+    const fileStats = await Promise.all(
+      files.map(async (name) => {
         const filePath = path.join(CACHE_DIR, name);
-        const { size, mtimeMs } = fs.statSync(filePath);
+        const { size, mtimeMs } = await fs.promises.stat(filePath);
         return { filePath, size, mtimeMs };
       })
-      .sort((a, b) => a.mtimeMs - b.mtimeMs);
+    );
 
-    let total = files.reduce((s, f) => s + f.size, 0);
-    if (total <= MAX_CACHE_SIZE_BYTES) return;
+    fileStats.sort((a, b) => a.mtimeMs - b.mtimeMs);
+    let total = fileStats.reduce((s, f) => s + f.size, 0);
 
-    for (const f of files) {
+    for (const f of fileStats) {
       if (total <= MAX_CACHE_SIZE_BYTES) break;
-      fs.unlink(f.filePath, (err) => {
-        if (!err)
-          console.log(`[CACHE] Removed old file: ${path.basename(f.filePath)}`);
-      });
+      await fs.promises.unlink(f.filePath).catch(() => {});
       total -= f.size;
+      console.log(`[CACHE] Removed old file: ${path.basename(f.filePath)}`);
     }
   } catch (err) {
     console.error('[CACHE] Cleanup error:', err);
   }
-}
-
-export async function prefetchNext(url: string) {
-  const videoId = getYouTubeID(url);
-  if (!videoId) {
-    console.error('[CACHE] Invalid URL passed to prefetchNext:', url);
-    return;
-  }
-
-  const cachePath = path.join(CACHE_DIR, `${videoId}.opus`);
-  if (fs.existsSync(cachePath)) return;
-
-  if (activeDownloads.has(videoId)) {
-    console.log(`[CACHE] Prefetch for ${videoId} already in progress`);
-    return;
-  }
-
-  console.log(`[CACHE] Prefetching ${videoId}`);
-
-  const promise = runYtDlpDownload(url)
-    .then(() => {
-      console.log(`[CACHE] Prefetch finished: ${videoId}`);
-      activeDownloads.delete(videoId);
-    })
-    .catch((err) => {
-      console.error(`[CACHE] Prefetch failed for ${videoId}:`, err.message);
-      activeDownloads.delete(videoId);
-    });
-
-  activeDownloads.set(videoId, promise);
 }
 
 async function runYtDlpDownload(url: string): Promise<void> {
