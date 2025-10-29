@@ -6,7 +6,7 @@ import appRootPath from 'app-root-path';
 import getYouTubeID from 'get-youtube-id';
 import { ENV } from '../../ENV';
 
-const ytdlpQueue = new PQueue({ concurrency: 1 });
+const ytdlpQueue = new PQueue({ concurrency: 2 });
 const activeDownloads = new Map<string, Promise<void>>();
 
 const CACHE_DIR = path.join(appRootPath.path, 'cache');
@@ -14,11 +14,11 @@ const MAX_CACHE_SIZE_BYTES = ENV.MAX_CACHE_SIZE_GB * 1024 ** 3;
 
 if (!fs.existsSync(CACHE_DIR)) fs.mkdirSync(CACHE_DIR, { recursive: true });
 
-function getCachePath(videoId: string) {
+export function getCachePath(videoId: string) {
   return path.join(CACHE_DIR, `${videoId}.opus`);
 }
 
-function isCached(videoId: string) {
+export function isCached(videoId: string) {
   return fs.existsSync(getCachePath(videoId));
 }
 
@@ -110,8 +110,6 @@ async function runYtDlpDownload(url: string): Promise<void> {
         path.join(CACHE_DIR, '%(id)s.part.opus'),
         '--ffmpeg-location',
         '/usr/bin/ffmpeg',
-        '--quiet',
-        '--no-progress',
         url,
       ]);
 

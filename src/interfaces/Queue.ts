@@ -244,7 +244,11 @@ export class Queue {
   public async processQueue(): Promise<void> {
     const next = this.tracks[1];
     if (next && next.durationSec <= MAX_CACHE_DURATION_SEC) {
-      cacheTrack(next.url);
+      try {
+        cacheTrack(next.url);
+      } catch (error) {
+        console.log('Failed to cache track:', next.url);
+      }
     }
 
     if (this.queueLock || this.player.state.status !== AudioPlayerStatus.Idle) {
@@ -268,7 +272,7 @@ export class Queue {
 
       this.resource.volume?.setVolumeLogarithmic(this.volume / 100);
     } catch (error) {
-      console.error(error);
+      console.error('createResource error', error);
 
       return this.processQueue();
     } finally {

@@ -1,45 +1,54 @@
 import { createAudioResource, StreamType } from '@discordjs/voice';
 import fs from 'fs';
-import { cacheTrack } from './caching/manager';
+import { cacheTrack, getCachePath, isCached } from './caching/manager';
 import appRootPath from 'app-root-path';
 import { spawn } from 'child_process';
+import getYouTubeID from 'get-youtube-id';
 
 export async function createResource(url: string, shouldCache?: boolean) {
-  try {
-    if (!shouldCache) {
-      console.log('[CACHE] Skipping caching (streaming directly)');
-      const process = spawn(
-        'yt-dlp',
-        [
-          '--ffmpeg-location',
-          '/usr/bin/ffmpeg',
-          '--format',
-          'bestaudio[acodec=opus]/bestaudio',
-          '--cookies',
-          `${appRootPath}/cookies.txt`,
-          '-o',
-          '-',
-          '--quiet',
-          url,
-        ],
-        { stdio: ['ignore', 'pipe', 'ignore'] }
-      );
+  const videoId = getYouTubeID(url);
+  if (!videoId) throw new Error('Failed to extract videoId');
 
-      const stdout = process.stdout;
-      if (!stdout) throw new Error('No stream found');
-      return createAudioResource(stdout, { inputType: StreamType.WebmOpus });
+  const cacheExists = isCached(videoId);
+
+  try {
+    if (cacheExists) {
+      const opus = getCachePath(videoId);
+      console.log(opus);
+
+      return createAudioResource(fs.createReadStream(opus), {
+        inputType: StreamType.OggOpus,
+      });
     }
 
-    const cachePath = await cacheTrack(url);
-    const resource = createAudioResource(fs.createReadStream(cachePath), {
-      inputType: StreamType.OggOpus,
-    });
+    const process = spawn(
+      'yt-dlp',
+      [
+        '--ffmpeg-location',
+        '/usr/bin/ffmpeg',
+        '-f',
+        'bestaudio/best',
+        '--cookies',
+        `${appRootPath}/cookies.txt`,
+        '-o',
+        '-',
+        url,
+      ],
+      { stdio: ['ignore', 'pipe', 'ignore'] }
+    );
 
-    return resource;
+    const stdout = process.stdout;
+    if (!stdout) throw new Error('No stream found');
+
+    return createAudioResource(stdout);
   } catch (error) {
     if (error instanceof Error) {
       throw new Error(`Failed to create resource: ${error.message}`);
     }
     throw new Error('Failed to create resource, unknown reason');
+  } finally {
+    if (shouldCache && !cacheExists) {
+      cacheTrack(url);
+    }
   }
 }
