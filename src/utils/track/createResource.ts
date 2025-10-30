@@ -4,9 +4,10 @@ import { cacheTrack, getCachePath, isCached } from './caching/manager';
 import appRootPath from 'app-root-path';
 import { spawn } from 'child_process';
 import getYouTubeID from 'get-youtube-id';
+import { Track } from '../../interfaces/Track';
 
-export async function createResource(url: string, shouldCache?: boolean) {
-  const videoId = getYouTubeID(url);
+export async function createResource(track: Track, shouldCache?: boolean) {
+  const videoId = getYouTubeID(track.url);
   if (!videoId) throw new Error('Failed to extract videoId');
 
   const cacheExists = isCached(videoId);
@@ -32,7 +33,7 @@ export async function createResource(url: string, shouldCache?: boolean) {
         `${appRootPath}/cookies.txt`,
         '-o',
         '-',
-        url,
+        track.url,
       ],
       { stdio: ['ignore', 'pipe', 'ignore'] }
     );
@@ -48,7 +49,7 @@ export async function createResource(url: string, shouldCache?: boolean) {
     throw new Error('Failed to create resource, unknown reason');
   } finally {
     if (shouldCache && !cacheExists) {
-      cacheTrack(url);
+      cacheTrack(track);
     }
   }
 }

@@ -244,11 +244,7 @@ export class Queue {
   public async processQueue(): Promise<void> {
     const next = this.tracks[1];
     if (next && next.durationSec <= MAX_CACHE_DURATION_SEC) {
-      try {
-        cacheTrack(next.url);
-      } catch (error) {
-        console.log('Failed to cache track:', next.url);
-      }
+      cacheTrack(next);
     }
 
     if (this.queueLock || this.player.state.status !== AudioPlayerStatus.Idle) {
@@ -264,7 +260,7 @@ export class Queue {
     const current = this.tracks[0];
     try {
       const shouldCache = current.durationSec <= MAX_CACHE_DURATION_SEC;
-      const resource = await createResource(current.url, shouldCache);
+      const resource = await createResource(current, shouldCache);
       if (!resource) throw new Error('No stream found');
 
       this.resource = resource;
