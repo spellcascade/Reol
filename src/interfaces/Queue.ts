@@ -315,7 +315,7 @@ export class Queue {
     if (!track) return;
 
     const artist = track.metadata?.artist;
-    const title = track.metadata?.title ?? cleanYoutubeTitle(track.title);
+    const title = track.metadata?.title ?? track.title
     const status = artist ? `${artist} - ${title}` : title;
 
     try {
