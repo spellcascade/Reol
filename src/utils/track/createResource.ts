@@ -15,7 +15,6 @@ export async function createResource(track: Track, shouldCache?: boolean) {
   try {
     if (cacheExists) {
       const opus = getCachePath(videoId);
-      console.log(opus);
 
       return createAudioResource(fs.createReadStream(opus), {
         inputType: StreamType.OggOpus,

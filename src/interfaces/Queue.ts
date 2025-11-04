@@ -162,6 +162,7 @@ export class Queue {
           newState.status === AudioPlayerStatus.Playing
         ) {
           this.sendPlayingMessage();
+          this.setPlayingVoiceStatus();
         }
       }
     );
@@ -225,6 +226,7 @@ export class Queue {
     this.radioSession = null;
     this.player.stop();
 
+    this.resetVoiceStatus();
     this.sendTextMessage('Queue ended');
 
     if (this.waitTimeout !== null) return;
@@ -304,6 +306,35 @@ export class Queue {
     for (let i = this.tracks.length - 1; i > 1; i--) {
       let j = 1 + Math.floor(Math.random() * i);
       [this.tracks[i], this.tracks[j]] = [this.tracks[j], this.tracks[i]];
+    }
+  }
+
+  async setPlayingVoiceStatus() {
+    const track = this.tracks[0];
+    if (!track) return;
+
+    const artist = track.metadata?.artist;
+    const title = track.metadata?.title ?? track.title;
+    const status = artist ? `${artist} - ${title}` : title;
+
+    try {
+      await this.client.rest.put(
+        `/channels/${this.connection.joinConfig.channelId}/voice-status`,
+        { body: { status: status.slice(0, 128) } }
+      );
+    } catch (err) {
+      console.debug('Failed to update voice channel status:', err);
+    }
+  }
+
+  async resetVoiceStatus() {
+    try {
+      await this.client.rest.put(
+        `/channels/${this.connection.joinConfig.channelId}/voice-status`,
+        { body: { status: '' } }
+      );
+    } catch (err) {
+      console.debug('Failed to update voice channel status:', err);
     }
   }
 }
