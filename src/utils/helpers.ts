@@ -7,7 +7,7 @@ export const SPOTIFY_TRACK_REGEX =
 export const SPOTIFY_ARTIST_REGEX =
   /^https:\/\/open\.spotify\.com\/artist\/([0-9A-Za-z]+)/;
 
-export const YOUTUBE_PLAYLIST_REGEX = /^.*(list=)([^#\&\?]*).*/;
+export const YOUTUBE_PLAYLIST_REGEX = /\/playlist\?list=([^#&?]+)/;
 
 export const SPOTIFY_PLAYLIST_REGEX =
   /^https:\/\/open\.spotify\.com\/(playlist|album)\/[a-zA-Z0-9]+(\?si=[a-zA-Z0-9]+)?$/;
