@@ -20,7 +20,6 @@ import { createResource } from '../utils/track/createResource';
 import { getTrack } from '../utils/getTrack';
 import { RadioSession } from './RadioSession';
 import { cacheTrack } from '../utils/track/caching/manager';
-import { cleanYoutubeTitle } from '../utils/youtube/cleanYoutubeTitle';
 
 const wait = promisify(setTimeout);
 const MAX_CACHE_DURATION_SEC = 600;
@@ -315,7 +314,7 @@ export class Queue {
     if (!track) return;
 
     const artist = track.metadata?.artist;
-    const title = track.metadata?.title ?? track.title
+    const title = track.metadata?.title ?? track.title;
     const status = artist ? `${artist} - ${title}` : title;
 
     try {
