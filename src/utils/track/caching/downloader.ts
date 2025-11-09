@@ -41,7 +41,7 @@ export async function runYtDlpDownload(
         if (code === 0) {
           try {
             if (fs.existsSync(tmpPath)) {
-              const isValid = isOpusDurationValid(tmpPath, duration);
+              const isValid = await isOpusDurationValid(tmpPath, duration);
               if (!isValid) {
                 await fs.promises.unlink(tmpPath).catch(() => {});
                 return resolve();
