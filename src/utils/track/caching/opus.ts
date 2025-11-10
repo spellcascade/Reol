@@ -12,6 +12,10 @@ export async function isOpusDurationValid(
   const diff = Math.abs(actual - expectedDurationSec);
   const tolerance = Math.min(3, expectedDurationSec * 0.05);
 
+  console.log(
+    `Comparing ${actual} (opus) with ${expectedDurationSec} (expected) for: ${filePath}`
+  );
+
   const isValid = diff <= tolerance && actual >= expectedDurationSec * 0.9;
 
   if (!isValid) {
