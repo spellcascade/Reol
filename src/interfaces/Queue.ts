@@ -16,7 +16,7 @@ import { promisify } from 'node:util';
 import client from '..';
 import { ENV } from '../utils/ENV';
 import { Track } from './Track';
-import { createResource } from '../utils/track/createResource';
+import { createResourceWithRetry } from '../utils/track/createResource';
 import { getTrack } from '../utils/getTrack';
 import { RadioSession } from './RadioSession';
 import { cacheTrack } from '../utils/track/caching/manager';
@@ -259,10 +259,8 @@ export class Queue {
 
     this.queueLock = true;
 
-    const current = this.tracks[0];
     try {
-      const shouldCache = current.durationSec <= MAX_CACHE_DURATION_SEC;
-      const resource = await createResource(current, shouldCache);
+      const resource = await this.loadTrackResource(this.tracks[0]);
       if (!resource) throw new Error('No stream found');
 
       this.resource = resource;
@@ -315,12 +313,14 @@ export class Queue {
 
     const artist = track.metadata?.artist;
     const title = track.metadata?.title ?? track.title;
-    const status = artist ? `${artist} - ${title}` : title;
+    const status = escapeMarkdown(
+      (artist ? `${artist} - ${title}` : title).slice(0, 128)
+    );
 
     try {
       await this.client.rest.put(
         `/channels/${this.connection.joinConfig.channelId}/voice-status`,
-        { body: { status: status.slice(0, 128) } }
+        { body: { status } }
       );
     } catch (err) {
       console.debug('Failed to update voice channel status:', err);
@@ -337,4 +337,41 @@ export class Queue {
       console.debug('Failed to update voice channel status:', err);
     }
   }
+
+  private async loadTrackResource(track: Track) {
+    const panel = await this.textChannel.send(
+      renderTrackStatus(track, 'Processing…')
+    );
+
+    const updatePanel = async (text: string) => {
+      await panel.edit(renderTrackStatus(track, text));
+    };
+
+    try {
+      const shouldCache = track.durationSec <= MAX_CACHE_DURATION_SEC;
+
+      const resource = await createResourceWithRetry(
+        track,
+        updatePanel,
+        shouldCache
+      );
+
+      return resource;
+    } finally {
+      panel.delete().catch(() => {});
+    }
+  }
+}
+
+function renderTrackStatus(track: Track, status: string) {
+  return [
+    `**┌ TRACK:   ${escapeMarkdown(track.title)}**`,
+    `**└ STATUS:  ${status}**`,
+  ].join('\n');
+}
+
+function escapeMarkdown(text: string) {
+  var unescaped = text.replace(/\\(\*|_|`|~|\\)/g, '$1');
+  var escaped = unescaped.replace(/(\*|_|`|~|\\)/g, '\\$1');
+  return escaped;
 }

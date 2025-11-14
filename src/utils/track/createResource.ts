@@ -5,50 +5,89 @@ import appRootPath from 'app-root-path';
 import { spawn } from 'child_process';
 import getYouTubeID from 'get-youtube-id';
 import { Track } from '../../interfaces/Track';
+import retry from 'async-retry';
 
-export async function createResource(track: Track, shouldCache?: boolean) {
+const MAX_RETRIES = 3;
+
+export async function createResourceWithRetry(
+  track: Track,
+  onUpdate: (msg: string) => Promise<void>,
+  shouldCache?: boolean
+) {
+  return retry(
+    async (_, attempt) => {
+      try {
+        await onUpdate(`Attempt ${attempt}/${MAX_RETRIES}...`);
+
+        const resource = await createResource(track, shouldCache);
+        await onUpdate('Success!');
+        return resource;
+      } catch (err: any) {
+        const message = err.message || '';
+        await onUpdate(`Error: ${message}.`);
+        throw err;
+      }
+    },
+    {
+      retries: MAX_RETRIES - 1,
+      minTimeout: 300,
+      maxTimeout: 800,
+    }
+  );
+}
+
+async function createResource(track: Track, shouldCache?: boolean) {
   const videoId = getYouTubeID(track.url);
-  if (!videoId) throw new Error('Failed to extract videoId');
+  if (!videoId) {
+    throw new Error('Failed to extract videoId');
+  }
 
-  const cacheExists = isCached(videoId);
+  const cachePath = getCachePath(videoId);
 
   try {
-    if (cacheExists) {
-      const opus = getCachePath(videoId);
-
-      return createAudioResource(fs.createReadStream(opus), {
-        inputType: StreamType.OggOpus,
-      });
+    if (isCached(videoId)) {
+      return createOpusResource(cachePath);
     }
 
-    const process = spawn(
-      'yt-dlp',
-      [
-        '--ffmpeg-location',
-        '/usr/bin/ffmpeg',
-        '-f',
-        'bestaudio/best',
-        '--cookies',
-        `${appRootPath}/cookies.txt`,
-        '-o',
-        '-',
-        track.url,
-      ],
-      { stdio: ['ignore', 'pipe', 'ignore'] }
-    );
-
-    const stdout = process.stdout;
-    if (!stdout) throw new Error('No stream found');
-
-    return createAudioResource(stdout);
-  } catch (error) {
-    if (error instanceof Error) {
-      throw new Error(`Failed to create resource: ${error.message}`);
+    if (!shouldCache) {
+      return createStreamingResource(track.url);
     }
-    throw new Error('Failed to create resource, unknown reason');
-  } finally {
-    if (shouldCache && !cacheExists) {
-      cacheTrack(track);
+
+    const downloaded = await cacheTrack(track);
+    if (!downloaded || !fs.existsSync(downloaded)) {
+      throw new Error('Cache download failed');
     }
+
+    return createOpusResource(downloaded);
+  } catch (err) {
+    const msg = err instanceof Error ? err.message : String(err);
+    throw new Error(msg);
   }
+}
+
+function createOpusResource(path: string) {
+  return createAudioResource(fs.createReadStream(path), {
+    inputType: StreamType.OggOpus,
+  });
+}
+
+function createStreamingResource(url: string) {
+  const proc = spawn(
+    'yt-dlp',
+    [
+      '--ffmpeg-location',
+      '/usr/bin/ffmpeg',
+      '-f',
+      'bestaudio/best',
+      '--cookies',
+      `${appRootPath}/cookies.txt`,
+      '-o',
+      '-',
+      url,
+    ],
+    { stdio: ['ignore', 'pipe', 'ignore'] }
+  );
+
+  if (!proc.stdout) throw new Error('No stream found from yt-dlp');
+  return createAudioResource(proc.stdout);
 }

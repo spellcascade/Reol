@@ -44,7 +44,7 @@ export async function runYtDlpDownload(
               const isValid = await isOpusDurationValid(tmpPath, duration);
               if (!isValid) {
                 await fs.promises.unlink(tmpPath).catch(() => {});
-                return resolve();
+                return reject(new Error('Invalid opus stream'));
               }
 
               fs.renameSync(tmpPath, finalPath);
