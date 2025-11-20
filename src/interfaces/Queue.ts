@@ -130,6 +130,7 @@ export class Queue {
     this.player.on(
       'stateChange' as any,
       async (oldState: AudioPlayerState, newState: AudioPlayerState) => {
+        // Track finished
         if (
           oldState.status !== AudioPlayerStatus.Idle &&
           newState.status === AudioPlayerStatus.Idle
@@ -157,9 +158,13 @@ export class Queue {
           if (this.tracks.length || this.resource.audioPlayer) {
             this.processQueue();
           }
-        } else if (
-          oldState.status === AudioPlayerStatus.Buffering &&
-          newState.status === AudioPlayerStatus.Playing
+          return;
+        }
+
+        // Playback started
+        if (
+          newState.status === AudioPlayerStatus.Playing &&
+          oldState.status !== AudioPlayerStatus.Playing
         ) {
           this.sendPlayingMessage();
           this.setPlayingVoiceStatus();
@@ -261,7 +266,7 @@ export class Queue {
 
     try {
       const resource = await this.loadTrackResource(this.tracks[0]);
-      if (!resource) throw new Error('No stream found');
+      if (!resource) throw new Error('No resource');
 
       this.resource = resource;
       this.player.play(this.resource);
@@ -349,16 +354,18 @@ export class Queue {
 
     try {
       const shouldCache = track.durationSec <= MAX_CACHE_DURATION_SEC;
-
       const resource = await createResourceWithRetry(
         track,
         updatePanel,
         shouldCache
       );
 
+      panel.delete().catch(console.error);
       return resource;
-    } finally {
-      panel.delete().catch(() => {});
+    } catch (err: any) {
+      const msg = err?.message || 'Failed to load track';
+      await updatePanel(`Error: ${msg}`);
+      throw msg;
     }
   }
 }

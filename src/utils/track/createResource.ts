@@ -75,19 +75,36 @@ function createStreamingResource(url: string) {
   const proc = spawn(
     'yt-dlp',
     [
+      '--no-part',
+      '--no-cache-dir',
+      '--format',
+      'bestaudio[ext=opus]/bestaudio',
+      '--concurrent-fragments',
+      '4',
+      '--fragment-retries',
+      '10',
+      '--retry-sleep',
+      '0.5',
       '--ffmpeg-location',
       '/usr/bin/ffmpeg',
-      '-f',
-      'bestaudio/best',
       '--cookies',
       `${appRootPath}/cookies.txt`,
       '-o',
       '-',
       url,
     ],
-    { stdio: ['ignore', 'pipe', 'ignore'] }
+    {
+      stdio: ['ignore', 'pipe', 'pipe'],
+    }
   );
 
-  if (!proc.stdout) throw new Error('No stream found from yt-dlp');
-  return createAudioResource(proc.stdout);
+  proc.stderr.on('data', (d) => {
+    console.warn('[STREAM STDERR]', d.toString());
+  });
+
+  if (!proc.stdout) throw new Error('No stream from yt-dlp');
+
+  return createAudioResource(proc.stdout, {
+    inputType: StreamType.WebmOpus,
+  });
 }
