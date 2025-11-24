@@ -30,6 +30,7 @@ export async function getSimilarTracks(id: string): Promise<SpotifyTrack[]> {
         title: getSpotifyTrackTitle(t),
         artist: t.artists?.[0]?.name ?? '',
         popularity: t.popularity,
+        durationSec: t.duration_ms * 1000,
         artists: t.artists,
         name: t.name,
       })) as SpotifyTrack[];
@@ -39,6 +40,7 @@ export async function getSimilarTracks(id: string): Promise<SpotifyTrack[]> {
         id: trackDetails.id,
         title: getSpotifyTrackTitle(trackDetails),
         artists: trackDetails.artists,
+        durationSec: trackDetails.durationSec,
         popularity: trackDetails.popularity,
         name: trackDetails.name,
       },
