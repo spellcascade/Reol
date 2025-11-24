@@ -9,6 +9,7 @@ export interface TrackDetails {
   id: string;
   name: string;
   popularity: number;
+  durationSec: number;
   artists: TrackArtist[];
 }
 
@@ -18,7 +19,10 @@ export async function getTrackDetails(
   try {
     const details = await spotifyFetch(`/tracks/${trackId}`);
 
-    return details;
+    return {
+      ...details,
+      durationSec: Math.floor(details.duration_ms / 1000),
+    };
   } catch (error) {
     console.error('Failed to fetch track details:', error);
     throw error;

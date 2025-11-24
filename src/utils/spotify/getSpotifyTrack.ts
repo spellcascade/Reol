@@ -18,7 +18,10 @@ export async function getSpotifyTrack(url: string): Promise<Track> {
         const artist = details?.artists?.[0]?.name || '';
         const title = details?.name || '';
 
-        const track = await getYoutubeTrackByQuery(`${artist} - ${title}`);
+        const track = await getYoutubeTrackByQuery(
+          `${artist} - ${title}`,
+          details?.durationSec
+        );
 
         return {
           ...track,

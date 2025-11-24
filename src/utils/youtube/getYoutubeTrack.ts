@@ -2,13 +2,18 @@ import retry from 'async-retry';
 import { YoutubeClient } from '../../external/youtube/YoutubeClient';
 import { Track } from '../../interfaces/Track';
 
-export async function getYoutubeTrackByQuery(query: string): Promise<Track> {
+export async function getYoutubeTrackByQuery(
+  query: string,
+  expectedDuration?: number
+): Promise<Track> {
   return retry(
     async () => {
       try {
         const yt = await YoutubeClient.create();
 
-        const track = await yt.byQuery(query);
+        const track = await yt.byQuery(query, {
+          expectedDuration,
+        });
         if (!track) throw new Error(`No video for ${query} found`);
 
         return track;

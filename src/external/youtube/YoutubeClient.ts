@@ -9,8 +9,10 @@ import {
   PlaylistVideo,
   ReelItem,
   ShortsLockupView,
+  Video,
 } from 'youtubei.js/dist/src/parser/nodes';
 import { Playlist } from '../../utils/getPlaylist';
+import { YoutubeVideo, pickBestVideo } from '../../utils/youtube/pickBestVideo';
 
 export class YoutubeClient {
   client: Innertube;
@@ -63,26 +65,44 @@ export class YoutubeClient {
     }
   }
 
-  public async byQuery(query: string): Promise<Track | null> {
+  public async byQuery(
+    query: string,
+    opts?: {
+      expectedDuration?: number;
+    }
+  ): Promise<Track | null> {
     try {
       const res = await this.client.search(query, {
         type: 'video',
       });
 
-      const vids = (res.videos || []).filter((v) => v.type === 'Video');
-      const video: any = vids[0];
-      if (!video) return null;
+      const rawVideos = (res.videos || []).filter(
+        (v) => v.type === 'Video'
+      ) as Video[];
 
-      const duration = video?.duration?.seconds;
-      if (typeof duration != 'number' || duration < 0) {
-        throw new Error('Invalid video duration');
+      if (rawVideos.length === 0) {
+        return null;
+      }
+
+      const normalized: YoutubeVideo[] = rawVideos.map((v) => ({
+        id: v.id,
+        duration: v.duration?.seconds ?? 0, // safer
+        title: v.title?.toString() ?? '',
+      }));
+
+      let video: YoutubeVideo;
+      if (opts?.expectedDuration) {
+        const candidate = pickBestVideo(normalized, opts.expectedDuration);
+        video = candidate ?? normalized[0];
+      } else {
+        video = normalized[0];
       }
 
       return {
         url: `https://www.youtube.com/watch?v=${video.id}`,
-        title: video?.title?.text || 'No title',
-        durationFormatted: formatDuration(duration),
-        durationSec: duration,
+        title: video.title || 'No title',
+        durationFormatted: formatDuration(video.duration),
+        durationSec: video.duration,
       };
     } catch (error) {
       console.log('Error byQuery', error);
