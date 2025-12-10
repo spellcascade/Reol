@@ -29,7 +29,7 @@ export async function createResource(
     }
 
     const downloaded = await cacheTrack(track);
-    if (!downloaded || !fs.existsSync(downloaded)) {
+    if (!downloaded) {
       throw new Error('Cache download failed');
     }
 

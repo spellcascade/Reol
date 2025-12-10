@@ -62,7 +62,9 @@ export async function runYtDlpDownload(
         }
 
         try {
-          if (!fs.existsSync(tmpPath)) {
+          try {
+            await fs.promises.access(tmpPath, fs.constants.R_OK);
+          } catch {
             return reject(
               new Error('yt-dlp did not create expected part file')
             );
@@ -74,17 +76,17 @@ export async function runYtDlpDownload(
             return reject(new Error('Invalid opus stream'));
           }
 
-          fs.renameSync(tmpPath, finalPath);
+          await fs.promises.rename(tmpPath, finalPath);
           console.log(`[CACHE] Download complete: ${videoId}`);
 
-          for (const f of fs.readdirSync(cacheDir)) {
-            if (f.startsWith(videoId) && f.endsWith('.part.opus')) {
-              const stale = path.join(cacheDir, f);
-              try {
-                fs.unlinkSync(stale);
-              } catch {}
-            }
-          }
+          const files = await fs.promises.readdir(cacheDir);
+          await Promise.all(
+            files
+              .filter((f) => f.startsWith(videoId) && f.endsWith('.part.opus'))
+              .map((f) =>
+                fs.promises.unlink(path.join(cacheDir, f)).catch(() => {})
+              )
+          );
 
           resolve();
         } catch (err) {

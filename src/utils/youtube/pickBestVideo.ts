@@ -12,20 +12,20 @@ export function pickBestVideo(
     return null;
   }
 
-  const MAX_DIFF_SEC = 10;
-  const sortByDurationCloseness = (a: YoutubeVideo, b: YoutubeVideo) => {
-    const diffA = Math.abs(a.duration - expectedDuration);
-    const diffB = Math.abs(b.duration - expectedDuration);
-    return diffA - diffB;
-  };
+  const MAX_DIFF_SEC = 15;
 
-  const closeMatches = videos.filter(
+  const acceptable = videos.filter(
     (v) => Math.abs(v.duration - expectedDuration) <= MAX_DIFF_SEC
   );
 
-  if (closeMatches.length > 0) {
-    return [...closeMatches].sort(sortByDurationCloseness)[0];
+  if (acceptable.length > 0) {
+    return acceptable[0];
   }
 
-  return [...videos].sort(sortByDurationCloseness)[0];
+  // Pick closest duration from all
+  return [...videos].sort((a, b) => {
+    const diffA = Math.abs(a.duration - expectedDuration);
+    const diffB = Math.abs(b.duration - expectedDuration);
+    return diffA - diffB;
+  })[0];
 }

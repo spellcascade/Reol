@@ -47,6 +47,9 @@ export class YoutubeClient {
       if (!id) throw new Error('Invalid YouTube URL');
 
       const res = await this.client.getBasicInfo(id);
+      if (!res.basic_info.id) {
+        throw new Error('Video not found, check URL or cookies');
+      }
 
       const duration = res.basic_info.duration;
       if (typeof duration != 'number' || duration < 0) {
