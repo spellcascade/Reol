@@ -1,11 +1,12 @@
 import { createAudioResource, StreamType } from '@discordjs/voice';
 import fs from 'fs';
-import { cacheTrack, getCachePath, isCached } from './caching/manager';
+import { cacheTrack, getCachePath, isOpusCached } from './caching/manager';
 import appRootPath from 'app-root-path';
 import { spawn } from 'child_process';
 import getYouTubeID from 'get-youtube-id';
 import { Track } from '../../interfaces/Track';
 import retry from 'async-retry';
+import path from 'path';
 
 const MAX_RETRIES = 3;
 
@@ -45,7 +46,8 @@ async function createResource(track: Track, shouldCache?: boolean) {
   const cachePath = getCachePath(videoId);
 
   try {
-    if (isCached(videoId)) {
+    const isCached = await isOpusCached(videoId);
+    if (isCached) {
       return createOpusResource(cachePath);
     }
 
@@ -75,10 +77,9 @@ function createStreamingResource(url: string) {
   const proc = spawn(
     'yt-dlp',
     [
-      '--no-part',
       '--no-cache-dir',
       '--format',
-      'bestaudio[ext=opus]/bestaudio',
+      'bestaudio[ext=webm][acodec=opus]/bestaudio[acodec=opus]',
       '--concurrent-fragments',
       '4',
       '--fragment-retries',
@@ -88,7 +89,7 @@ function createStreamingResource(url: string) {
       '--ffmpeg-location',
       '/usr/bin/ffmpeg',
       '--cookies',
-      `${appRootPath}/cookies.txt`,
+      path.join(appRootPath.path, 'cookies.txt'),
       '-o',
       '-',
       url,
@@ -98,13 +99,21 @@ function createStreamingResource(url: string) {
     }
   );
 
-  proc.stderr.on('data', (d) => {
+  proc.on('error', (err) => {
+    console.error('[STREAM] Failed to spawn yt-dlp:', err);
+  });
+
+  proc.stderr?.on('data', (d) => {
     console.warn('[STREAM STDERR]', d.toString());
   });
 
   if (!proc.stdout) throw new Error('No stream from yt-dlp');
 
-  return createAudioResource(proc.stdout, {
+  const resource = createAudioResource(proc.stdout, {
     inputType: StreamType.WebmOpus,
   });
+
+  resource.playStream.on('close', () => proc.kill('SIGKILL'));
+  resource.playStream.on('error', () => proc.kill('SIGKILL'));
+  return resource;
 }

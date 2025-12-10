@@ -6,19 +6,10 @@ import { Track } from '../../../interfaces/Track';
 import { cleanupCache } from './cleaup';
 import { runYtDlpDownload } from './downloader';
 
-const activeDownloads = new Map<string, Promise<void>>();
-
 const CACHE_DIR = path.join(appRootPath.path, 'cache');
-
 if (!fs.existsSync(CACHE_DIR)) fs.mkdirSync(CACHE_DIR, { recursive: true });
 
-export function getCachePath(videoId: string) {
-  return path.join(CACHE_DIR, `${videoId}.opus`);
-}
-
-export function isCached(videoId: string) {
-  return fs.existsSync(getCachePath(videoId));
-}
+const activeDownloads = new Map<string, Promise<void>>();
 
 export async function cacheTrack(track: Track): Promise<string | null> {
   const videoId = getYouTubeID(track.url);
@@ -28,7 +19,8 @@ export async function cacheTrack(track: Track): Promise<string | null> {
   }
 
   const cachePath = getCachePath(videoId);
-  if (isCached(videoId)) return cachePath;
+  const isCached = await isOpusCached(videoId);
+  if (isCached) return cachePath;
 
   try {
     const existingDownload = activeDownloads.get(videoId);
@@ -38,7 +30,7 @@ export async function cacheTrack(track: Track): Promise<string | null> {
     } else {
       const promise = runYtDlpDownload(track.url, track.durationSec, CACHE_DIR)
         .catch((err) => {
-          console.error(`[CACHE] Failed to cache ${videoId}:`, err.message);
+          console.error(`[CACHE] Failed to cache ${videoId}:`, err);
           throw err;
         })
         .finally(() => activeDownloads.delete(videoId));
@@ -47,16 +39,18 @@ export async function cacheTrack(track: Track): Promise<string | null> {
       await promise;
     }
 
-    if (!fs.existsSync(cachePath)) {
+    try {
+      await fs.promises.access(cachePath, fs.constants.R_OK);
+    } catch {
       console.warn(
         `[CACHE] Expected file missing after download: ${cachePath}`
       );
       return null;
     }
 
-    const now = new Date();
     try {
-      fs.utimesSync(cachePath, now, now);
+      const now = new Date();
+      await fs.promises.utimes(cachePath, now, now);
     } catch (err) {
       console.warn(`[CACHE] Failed to update mtime for ${videoId}:`, err);
     }
@@ -69,5 +63,18 @@ export async function cacheTrack(track: Track): Promise<string | null> {
   } catch (err) {
     console.error(`[CACHE] Cache failed for ${videoId}:`, err);
     return null;
+  }
+}
+
+export function getCachePath(videoId: string) {
+  return path.join(CACHE_DIR, `${videoId}.opus`);
+}
+
+export async function isOpusCached(videoId: string): Promise<boolean> {
+  try {
+    await fs.promises.access(getCachePath(videoId), fs.constants.R_OK);
+    return true;
+  } catch {
+    return false;
   }
 }
