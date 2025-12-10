@@ -4,36 +4,34 @@ import fs from 'fs';
 import path from 'path';
 import { spawn } from 'child_process';
 import { isOpusDurationValid } from './opus';
-import appRootPath from 'app-root-path';
+import { paths } from '../../../constants/paths';
 
 const ytdlpQueue = new PQueue({ concurrency: 2 });
 
 export async function runYtDlpDownload(
   url: string,
-  duration: number,
-  cacheDir: string
+  duration: number
 ): Promise<void> {
   return ytdlpQueue.add(() => {
     return new Promise<void>((resolve, reject) => {
       const videoId = getYouTubeID(url);
       if (!videoId) return reject(new Error('Could not extract videoId'));
 
-      const tmpPath = path.join(cacheDir, `${videoId}.part.opus`);
-      const finalPath = path.join(cacheDir, `${videoId}.opus`);
-      const cookiesPath = `${appRootPath}/cookies.txt`;
+      const tmpPath = path.join(paths.dirs.cache, `${videoId}.part.opus`);
+      const finalPath = path.join(paths.dirs.cache, `${videoId}.opus`);
 
       let ytdlp: ReturnType<typeof spawn>;
       try {
         ytdlp = spawn('yt-dlp', [
           '--cookies',
-          cookiesPath,
+          paths.cookies,
           '--no-cache-dir',
           '--format',
           'bestaudio[ext=opus]/bestaudio',
           '--audio-format',
           'opus',
           '--output',
-          path.join(cacheDir, '%(id)s.part.opus'),
+          path.join(paths.dirs.cache, '%(id)s.part.opus'),
           '--concurrent-fragments',
           '4',
           '--fragment-retries',
@@ -79,12 +77,14 @@ export async function runYtDlpDownload(
           await fs.promises.rename(tmpPath, finalPath);
           console.log(`[CACHE] Download complete: ${videoId}`);
 
-          const files = await fs.promises.readdir(cacheDir);
+          const files = await fs.promises.readdir(paths.dirs.cache);
           await Promise.all(
             files
               .filter((f) => f.startsWith(videoId) && f.endsWith('.part.opus'))
               .map((f) =>
-                fs.promises.unlink(path.join(cacheDir, f)).catch(() => {})
+                fs.promises
+                  .unlink(path.join(paths.dirs.cache, f))
+                  .catch(() => {})
               )
           );
 

@@ -1,6 +1,6 @@
 import { promises as fs } from 'fs';
 import { fileExists } from './fileExists';
-import appRootPath from 'app-root-path';
+import { paths } from '../constants/paths';
 
 function formatCookies(cookies: Record<string, string>): string {
   return Object.entries(cookies)
@@ -33,15 +33,12 @@ async function parseNetscapeCookies(
 
 /**
  * This function only works with Netscape cookies.
- * Cookies file must be located at the root of the project with the name `cookies.txt`
  */
 export async function getYtCookiesString(): Promise<string | null> {
-  const cookiesPath = `${appRootPath}/cookies.txt`;
-
-  const exists = await fileExists(cookiesPath);
+  const exists = await fileExists(paths.cookies);
   if (!exists) return null;
 
-  const cookies = await parseNetscapeCookies(cookiesPath);
+  const cookies = await parseNetscapeCookies(paths.cookies);
   const cookieStr = formatCookies(cookies);
 
   return cookieStr;

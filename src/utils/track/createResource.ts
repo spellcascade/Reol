@@ -1,11 +1,10 @@
 import { createAudioResource, StreamType } from '@discordjs/voice';
 import fs from 'fs';
 import { cacheTrack, getCachePath, isOpusCached } from './caching/manager';
-import appRootPath from 'app-root-path';
 import { execFile, spawn } from 'child_process';
 import getYouTubeID from 'get-youtube-id';
 import { Track } from '../../interfaces/Track';
-import path from 'path';
+import { paths } from '../../constants/paths';
 
 export async function createResource(
   track: Track,
@@ -73,7 +72,7 @@ function createStreamingResource(url: string) {
       '--ffmpeg-location',
       '/usr/bin/ffmpeg',
       '--cookies',
-      path.join(appRootPath.path, 'cookies.txt'),
+      paths.cookies,
       '-o',
       '-',
       url,
