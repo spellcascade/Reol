@@ -1,14 +1,17 @@
-import { AppDataSource } from '../db';
-import { getSpotifyTrack } from '../utils/spotify/getSpotifyTrack';
+import { getTrack } from '../utils/getTrack';
+import { createResource } from '../utils/track/createResource';
 
 async function main() {
   try {
-    await AppDataSource.initialize();
+    const track = await getTrack('https://www.youtube.com/watch?v=QK-Z1K67uaA');
 
-    const url = 'https://open.spotify.com/track/72YttnPRxyHe8zCG50jYhj';
-    const track = await getSpotifyTrack(url);
-
-    console.log(track);
+    await createResource(
+      track,
+      async (e) => {
+        console.log(e);
+      },
+      true
+    );
   } catch (error) {
     if (error instanceof Error) {
       console.error(error.message);

@@ -38,6 +38,8 @@ export async function runYtDlpDownload(
           '4',
           '--fragment-retries',
           '10',
+          '--sleep-interval',
+          '2',
           '--retry-sleep',
           '0.5',
           url,

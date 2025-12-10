@@ -16,7 +16,7 @@ import { promisify } from 'node:util';
 import client from '..';
 import { ENV } from '../utils/ENV';
 import { Track } from './Track';
-import { createResourceWithRetry } from '../utils/track/createResource';
+import { createResource } from '../utils/track/createResource';
 import { getTrack } from '../utils/getTrack';
 import { RadioSession } from './RadioSession';
 import { cacheTrack } from '../utils/track/caching/manager';
@@ -354,11 +354,7 @@ export class Queue {
 
     try {
       const shouldCache = track.durationSec <= MAX_CACHE_DURATION_SEC;
-      const resource = await createResourceWithRetry(
-        track,
-        updatePanel,
-        shouldCache
-      );
+      const resource = await createResource(track, updatePanel, shouldCache);
 
       panel.delete().catch(console.error);
       return resource;

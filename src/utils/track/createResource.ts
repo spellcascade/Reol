@@ -5,54 +5,27 @@ import appRootPath from 'app-root-path';
 import { spawn } from 'child_process';
 import getYouTubeID from 'get-youtube-id';
 import { Track } from '../../interfaces/Track';
-import retry from 'async-retry';
 import path from 'path';
 
-const MAX_RETRIES = 3;
-
-export async function createResourceWithRetry(
+export async function createResource(
   track: Track,
   onUpdate: (msg: string) => Promise<void>,
   shouldCache?: boolean
 ) {
-  return retry(
-    async (_, attempt) => {
-      try {
-        await onUpdate(`Attempt ${attempt}/${MAX_RETRIES}...`);
-
-        const resource = await createResource(track, shouldCache);
-        await onUpdate('Success!');
-        return resource;
-      } catch (err: any) {
-        const message = err.message || '';
-        await onUpdate(`Error: ${message}.`);
-        throw err;
-      }
-    },
-    {
-      retries: MAX_RETRIES - 1,
-      minTimeout: 300,
-      maxTimeout: 800,
-    }
-  );
-}
-
-async function createResource(track: Track, shouldCache?: boolean) {
-  const videoId = getYouTubeID(track.url);
-  if (!videoId) {
-    throw new Error('Failed to extract videoId');
-  }
-
-  const cachePath = getCachePath(videoId);
-
   try {
+    await onUpdate('Processing...');
+    const videoId = getYouTubeID(track.url);
+    if (!videoId) {
+      throw new Error('Failed to extract videoId');
+    }
+    if (!shouldCache) {
+      return createStreamingResource(track.url);
+    }
+
+    const cachePath = getCachePath(videoId);
     const isCached = await isOpusCached(videoId);
     if (isCached) {
       return createOpusResource(cachePath);
-    }
-
-    if (!shouldCache) {
-      return createStreamingResource(track.url);
     }
 
     const downloaded = await cacheTrack(track);
@@ -60,10 +33,12 @@ async function createResource(track: Track, shouldCache?: boolean) {
       throw new Error('Cache download failed');
     }
 
+    await onUpdate('Success!');
     return createOpusResource(downloaded);
-  } catch (err) {
-    const msg = err instanceof Error ? err.message : String(err);
-    throw new Error(msg);
+  } catch (err: any) {
+    const message = err.message || '';
+    await onUpdate(`Error: ${message}.`);
+    throw err;
   }
 }
 
@@ -84,6 +59,8 @@ function createStreamingResource(url: string) {
       '4',
       '--fragment-retries',
       '10',
+      '--sleep-interval',
+      '2',
       '--retry-sleep',
       '0.5',
       '--ffmpeg-location',
