@@ -7,17 +7,18 @@ export async function isOpusDurationValid(
   expectedDurationSec: number
 ): Promise<boolean> {
   const actual = await getOpusDuration(filePath);
-  if (!actual) return false;
+  if (actual == null || !Number.isFinite(actual) || actual <= 0) return false;
 
-  const diff = Math.abs(actual - expectedDurationSec);
-  const tolerance = Math.min(3, expectedDurationSec * 0.05);
-  const isValid = diff <= tolerance && actual >= expectedDurationSec * 0.9;
+  const maxShortfall = Math.min(3, expectedDurationSec * 0.05);
+  const shortfall = expectedDurationSec - actual;
+
+  const isValid = shortfall <= maxShortfall;
 
   if (!isValid) {
     console.warn(
       `[CACHE] Incomplete opus: expected ${expectedDurationSec}s, got ${actual.toFixed(
         2
-      )}s (${(expectedDurationSec - actual).toFixed(1)}s shorter)`
+      )}s (${shortfall.toFixed(2)}s shorter; allowed ${maxShortfall}s)`
     );
   }
 
