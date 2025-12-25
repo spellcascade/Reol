@@ -34,7 +34,6 @@
     "spotify-url-info": "3.2.6",
     "sqlite3": "^5.1.7",
     "string-similarity": "^4.0.4",
-    "transliteration": "^2.3.5",
     "ts-jest": "^29.3.2",
     "typeorm": "^0.3.15",
     "youtubei.js": "^10.5.0"

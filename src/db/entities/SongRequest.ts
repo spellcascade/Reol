@@ -16,21 +16,14 @@ export class SongRequest {
   @Column()
   title: string;
 
-  // song name
-  @Column({ default: '' })
-  name?: string;
-
-  @Column({ default: '' })
-  artist?: string;
-
-  @Column()
-  requestedBy: string;
-
   @Column()
   guildId: string;
 
-  @Column({ nullable: true, default: null })
-  spotifyId?: string;
+  @Column({ type: 'text', nullable: true })
+  trackId: number | null;
+
+  @Column()
+  requestedBy: string;
 
   @CreateDateColumn({ type: 'datetime', default: () => 'CURRENT_TIMESTAMP' })
   requestedAt: Date;
