@@ -17,3 +17,11 @@ services:
       - ./src/db/db.sqlite:/app/src/db/db.sqlite:rw
 
     command: ['node', 'dist/index.js']
+
+  migrate:
+    image: reol-image
+    env_file:
+      - ./.env
+    volumes:
+      - ./src/db/db.sqlite:/app/src/db/db.sqlite:rw
+    command: ['npm', 'run', 'migrate']
