@@ -21,7 +21,6 @@ export class Track {
   @Column({ type: 'text', nullable: true })
   spotifyId: string | null;
 
-  @Index({ unique: true })
   @Column({ type: 'text', nullable: true })
   isrc: string | null;
 
