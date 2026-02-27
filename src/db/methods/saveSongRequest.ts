@@ -14,7 +14,9 @@ export async function saveSongRequest({
   guildId: string;
   spotifyId?: string;
 }) {
-  await AppDataSource.manager.save(SongRequest, {
+  const repo = AppDataSource.getRepository(SongRequest);
+
+  await repo.save({
     url,
     title,
     requestedBy: authorId,

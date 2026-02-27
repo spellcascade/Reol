@@ -17,18 +17,15 @@ import client from '..';
 import { ENV } from '../utils/ENV';
 import { Track } from './Track';
 import { createResource } from '../utils/track/createResource';
-import { getTrack } from '../utils/getTrack';
-import { RadioSession } from './RadioSession';
 import { cacheTrack } from '../utils/track/caching/manager';
 
 const wait = promisify(setTimeout);
 const MAX_CACHE_DURATION_SEC = 600;
 
-export interface QueueOptions {
+interface Options {
   message: Message;
   textChannel: TextChannel;
   connection: VoiceConnection;
-  radioSession?: RadioSession;
 }
 
 export class Queue {
@@ -44,17 +41,15 @@ export class Queue {
   public loop = false;
   public muted = false;
   public waitTimeout: NodeJS.Timeout | null;
-  public radioSession: RadioSession | null;
 
   private queueLock = false;
   private readyLock = false;
   private stopped = false;
 
-  constructor(options: QueueOptions) {
+  constructor(options: Options) {
     this.message = options.message;
     this.connection = options.connection;
     this.textChannel = options.textChannel;
-    this.radioSession = options?.radioSession || null;
 
     this.player = createAudioPlayer({
       behaviors: { noSubscriber: NoSubscriberBehavior.Play },
@@ -70,15 +65,15 @@ export class Queue {
       'stateChange' as any,
       async (
         oldState: VoiceConnectionState,
-        newState: VoiceConnectionState
+        newState: VoiceConnectionState,
       ) => {
         Reflect.get(oldState, 'networking')?.off(
           'stateChange',
-          networkStateChangeHandler
+          networkStateChangeHandler,
         );
         Reflect.get(newState, 'networking')?.on(
           'stateChange',
-          networkStateChangeHandler
+          networkStateChangeHandler,
         );
 
         if (newState.status === VoiceConnectionStatus.Disconnected) {
@@ -109,7 +104,7 @@ export class Queue {
             await entersState(
               this.connection,
               VoiceConnectionStatus.Ready,
-              20_000
+              20_000,
             );
           } catch (err) {
             console.log('Error entering state:', err);
@@ -124,7 +119,7 @@ export class Queue {
             this.readyLock = false;
           }
         }
-      }
+      },
     );
 
     this.player.on(
@@ -141,16 +136,6 @@ export class Queue {
             this.tracks.shift();
 
             if (this.tracks.length === 0) {
-              if (this.radioSession !== null) {
-                this.processRadio();
-
-                if (this.radioSession.getTracks().length === 0) {
-                  this.stop();
-                }
-
-                return;
-              }
-
               return this.stop();
             }
           }
@@ -169,7 +154,7 @@ export class Queue {
           this.sendPlayingMessage();
           this.setPlayingVoiceStatus();
         }
-      }
+      },
     );
 
     this.player.on('error', (error) => {
@@ -183,33 +168,6 @@ export class Queue {
 
       this.processQueue();
     });
-  }
-
-  public async processRadio() {
-    if (this.radioSession === null) return;
-
-    try {
-      const nextTrack = this.radioSession.getNextTrack();
-      if (!nextTrack) {
-        this.radioSession = null;
-        return this.sendTextMessage('Radio is over');
-      }
-
-      const track = await getTrack(nextTrack.title);
-      track.requestedBy = 'Radio';
-      if (!track) throw new Error('No track found');
-
-      this.enqueue({
-        ...track,
-        metadata: {
-          artist: '',
-          title: nextTrack.title,
-          spotifyTrackId: nextTrack.spotifyId,
-        },
-      });
-    } catch (error: any) {
-      return this.sendTextMessage(error?.message || 'An error occurred');
-    }
   }
 
   public enqueue(...tracks: Track[]) {
@@ -228,7 +186,6 @@ export class Queue {
     this.loop = false;
     this.tracks = [];
 
-    this.radioSession = null;
     this.player.stop();
 
     this.resetVoiceStatus();
@@ -286,7 +243,7 @@ export class Queue {
       const track = this.tracks[0];
       return this.sendTextMessage(
         `**Now playing**: ${track.url}` +
-          (track.requestedBy ? `\nRequested by **${track.requestedBy}**` : '')
+          (track.requestedBy ? `\nRequested by **${track.requestedBy}**` : ''),
       );
     } catch (error: any) {
       console.error(error);
@@ -319,13 +276,13 @@ export class Queue {
     const artist = track.metadata?.artist;
     const title = track.metadata?.title ?? track.title;
     const status = escapeMarkdown(
-      (artist ? `${artist} - ${title}` : title).slice(0, 128)
+      (artist ? `${artist} - ${title}` : title).slice(0, 128),
     );
 
     try {
       await this.client.rest.put(
         `/channels/${this.connection.joinConfig.channelId}/voice-status`,
-        { body: { status } }
+        { body: { status } },
       );
     } catch (err) {
       console.debug('Failed to update voice channel status:', err);
@@ -336,7 +293,7 @@ export class Queue {
     try {
       await this.client.rest.put(
         `/channels/${this.connection.joinConfig.channelId}/voice-status`,
-        { body: { status: '' } }
+        { body: { status: '' } },
       );
     } catch (err) {
       console.debug('Failed to update voice channel status:', err);
@@ -345,7 +302,7 @@ export class Queue {
 
   private async loadTrackResource(track: Track) {
     const panel = await this.textChannel.send(
-      renderTrackStatus(track, 'Processing…')
+      renderTrackStatus(track, 'Processing…'),
     );
 
     const updatePanel = async (text: string) => {

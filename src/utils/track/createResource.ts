@@ -9,7 +9,7 @@ import { paths } from '../../constants/paths';
 export async function createResource(
   track: Track,
   onUpdate: (msg: string) => Promise<void>,
-  shouldCache?: boolean
+  shouldCache?: boolean,
 ) {
   try {
     await onUpdate('Processing...');
@@ -79,7 +79,7 @@ function createStreamingResource(url: string) {
     ],
     {
       stdio: ['ignore', 'pipe', 'pipe'],
-    }
+    },
   );
 
   proc.on('error', (err) => {
@@ -101,9 +101,7 @@ function createStreamingResource(url: string) {
   return resource;
 }
 
-export function detectOpusContainer(
-  filePath: string
-): Promise<'ogg' | 'webm' | null> {
+function detectOpusContainer(filePath: string): Promise<'ogg' | 'webm' | null> {
   return new Promise((resolve) => {
     execFile(
       'ffprobe',
@@ -122,7 +120,7 @@ export function detectOpusContainer(
         } catch {
           resolve(null);
         }
-      }
+      },
     );
   });
 }
