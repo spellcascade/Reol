@@ -3,6 +3,7 @@ import { Queue } from '../interfaces/Queue';
 import {
   DiscordGatewayAdapterCreator,
   joinVoiceChannel,
+  VoiceConnectionStatus,
 } from '@discordjs/voice';
 import { ENV } from '../utils/ENV';
 import { Command } from '../interfaces/Command';
@@ -36,7 +37,7 @@ export default {
 
       if (!voiceChannel) {
         return message.reply(
-          'Please join a voice channel or set a voice channel in the .env file.'
+          'Please join a voice channel or set a voice channel in the .env file.',
         );
       }
 
@@ -60,9 +61,9 @@ export default {
 
       const queue = client.queues.get(guildId);
       if (queue) {
-        queue.enqueue(track);
+        const enqueued = await queue.enqueue(message, track);
 
-        if (queue.tracks.length > 1) {
+        if (enqueued && queue.items.length > 1) {
           message.channel.send(`Added to queue: **${track.title}**`);
         }
 
@@ -82,7 +83,16 @@ export default {
       });
 
       client.queues.set(guildId, newQueue);
-      newQueue.enqueue(track);
+      const enqueued = await newQueue.enqueue(message, track);
+
+      if (!enqueued && newQueue.items.length === 0) {
+        if (newQueue.connection.state.status !== VoiceConnectionStatus.Destroyed) {
+          try {
+            newQueue.connection.destroy();
+          } catch {}
+        }
+        client.queues.delete(guildId);
+      }
     } catch (error: any) {
       console.error(error);
 

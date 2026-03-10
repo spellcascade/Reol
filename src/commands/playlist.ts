@@ -1,6 +1,7 @@
 import {
   DiscordGatewayAdapterCreator,
   joinVoiceChannel,
+  VoiceConnectionStatus,
 } from '@discordjs/voice';
 import { EmbedBuilder, TextChannel, VoiceBasedChannel } from 'discord.js';
 import { Command } from '../interfaces/Command';
@@ -42,8 +43,9 @@ export default {
       }));
 
       const queue = client.queues.get(guildId);
+      let enqueueTarget = queue;
       if (queue) {
-        queue.enqueue(...tracks);
+        enqueueTarget = queue;
       } else {
         const newQueue = new Queue({
           message,
@@ -58,7 +60,25 @@ export default {
         });
 
         client.queues.set(guildId, newQueue);
-        newQueue.enqueue(...tracks);
+        enqueueTarget = newQueue;
+      }
+
+      if (!enqueueTarget) return message.channel.send('There is no queue.');
+
+      let added = 0;
+      for (const track of tracks) {
+        const ok = await enqueueTarget.enqueue(message, track);
+        if (ok) added++;
+      }
+
+      if (!queue && added === 0 && enqueueTarget.items.length === 0) {
+        if (enqueueTarget.connection.state.status !== VoiceConnectionStatus.Destroyed) {
+          try {
+            enqueueTarget.connection.destroy();
+          } catch {}
+        }
+        client.queues.delete(guildId);
+        return message.channel.send('No tracks could be added from this playlist.');
       }
 
       const description = tracks

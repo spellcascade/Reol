@@ -12,7 +12,6 @@ export async function createResource(
   shouldCache?: boolean,
 ) {
   try {
-    await onUpdate('Processing...');
     const videoId = getYouTubeID(track.url);
     if (!videoId) {
       throw new Error('Failed to extract videoId');
@@ -29,14 +28,14 @@ export async function createResource(
 
     const downloaded = await cacheTrack(track);
     if (!downloaded) {
-      throw new Error('Cache download failed');
+      throw new Error('Failed to download track');
     }
 
     await onUpdate('Success!');
     return await createOpusResource(downloaded);
   } catch (err: any) {
     const message = err.message || '';
-    await onUpdate(`Error: ${message}.`);
+    await onUpdate(message);
     throw err;
   }
 }

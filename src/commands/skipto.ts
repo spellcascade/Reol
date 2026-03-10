@@ -19,11 +19,11 @@ export default {
         return message.channel.send('There is no queue.');
       }
 
-      if (skipTo > queue.tracks.length) {
+      if (skipTo > queue.items.length) {
         return message.channel.send(`There is no track at position ${skipTo}.`);
       }
 
-      queue.tracks.splice(0, skipTo - 2);
+      queue.items.splice(0, skipTo - 2);
       queue.player.stop(true);
     } catch (error) {
       console.log(error);

@@ -15,8 +15,8 @@ export default {
         name: guild.name,
         isPlaying:
           client.queues.get(guild.id)?.player?.state?.status === 'playing',
-        queueLength: client.queues.get(guild.id)?.tracks?.length || 0,
-        currentTrack: client.queues.get(guild.id)?.tracks?.[0],
+        queueLength: client.queues.get(guild.id)?.items?.length || 0,
+        currentTrack: client.queues.get(guild.id)?.items?.[0]?.track,
       }))
       .filter((server) => server.isPlaying || server.queueLength > 0);
 

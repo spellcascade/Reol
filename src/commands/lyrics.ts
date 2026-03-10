@@ -37,11 +37,11 @@ export default {
       }
 
       const queue = client.queues.get(guildId);
-      if (!queue || !queue.tracks.length) {
+      if (!queue || !queue.items.length) {
         return message.channel.send('There is no queue.');
       }
 
-      const track = queue.tracks[0];
+      const track = queue.items[0].track;
 
       const lyrics = await getLyrics({
         query:

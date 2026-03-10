@@ -1,4 +1,5 @@
 import { Command } from '../interfaces/Command';
+import { AudioPlayerStatus } from '@discordjs/voice';
 
 export default {
   name: 'skip',
@@ -13,11 +14,21 @@ export default {
         return message.channel.send('There is no queue.');
       }
 
+      if (!queue.items.length) {
+        if (queue.pendingResourceCreations > 0) {
+          return message.channel.send('Track is still being prepared.');
+        }
+
+        return message.channel.send('Nothing is currently playing.');
+      }
+
+      if (queue.player.state.status === AudioPlayerStatus.Idle) {
+        return message.channel.send('Nothing is currently playing.');
+      }
+
       queue.player.stop(true);
 
-      if (queue.tracks.length > 1) {
-        return message.channel.send('Track skipped');
-      }
+      return message.channel.send('Track skipped');
     } catch (error) {
       console.log(error);
 
