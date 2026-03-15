@@ -6,7 +6,6 @@ import {
   TextChannel,
   Options,
 } from 'discord.js';
-import fs from 'fs/promises';
 import { loadCommands } from './utils/loadCommands';
 import { Queue } from './interfaces/Queue';
 import { ENV } from './utils/ENV';
