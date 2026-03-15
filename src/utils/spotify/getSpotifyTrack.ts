@@ -13,21 +13,21 @@ export async function getSpotifyTrack(url: string): Promise<Track> {
           throw new Error('Invalid spotify track id');
         }
 
-        const details = await getTrackDetails(spotifyTrackId);
-
-        const artist = details?.artists?.[0]?.name || '';
-        const title = details?.name || '';
+        const spotifyTrack = await getTrackDetails(spotifyTrackId);
+        if (!spotifyTrack) {
+          throw new Error('Failed to get spotify track details');
+        }
 
         const track = await getYoutubeTrackByQuery(
-          `${artist} - ${title}`,
-          details?.durationSec
+          `${spotifyTrack.artists} - ${spotifyTrack.name}`,
+          spotifyTrack?.durationSec,
         );
 
         return {
           ...track,
           metadata: {
-            artist: artist,
-            title: title,
+            artist: spotifyTrack.artists,
+            title: spotifyTrack.name,
             spotifyTrackId: url.match(SPOTIFY_TRACK_REGEX)?.[1],
           },
         };
@@ -37,6 +37,6 @@ export async function getSpotifyTrack(url: string): Promise<Track> {
     },
     {
       retries: 2,
-    }
+    },
   );
 }

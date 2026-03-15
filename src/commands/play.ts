@@ -49,13 +49,11 @@ export default {
       track.requestedBy = message.author.displayName;
 
       if (ENV.USE_DB) {
-        const spotifyId = track.metadata?.spotifyTrackId;
         await saveSongRequest({
           url: track.url,
           title: track.title,
           authorId: message.author.id,
           guildId,
-          ...(spotifyId && { spotifyId }),
         });
       }
 
@@ -86,7 +84,9 @@ export default {
       const enqueued = await newQueue.enqueue(message, track);
 
       if (!enqueued && newQueue.items.length === 0) {
-        if (newQueue.connection.state.status !== VoiceConnectionStatus.Destroyed) {
+        if (
+          newQueue.connection.state.status !== VoiceConnectionStatus.Destroyed
+        ) {
           try {
             newQueue.connection.destroy();
           } catch {}

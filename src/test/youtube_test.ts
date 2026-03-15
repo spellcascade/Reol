@@ -1,17 +1,9 @@
-import { getTrack } from '../utils/getTrack';
-import { createResource } from '../utils/track/createResource';
+import { getTrackDetails } from '../external/spotify/getTrackDetails';
 
 async function main() {
   try {
-    const track = await getTrack('https://www.youtube.com/watch?v=QK-Z1K67uaA');
-
-    await createResource(
-      track,
-      async (e) => {
-        console.log(e);
-      },
-      true
-    );
+    const track = await getTrackDetails('0wbDgMuAoy7O7pL3a69uZx');
+    console.log(track);
   } catch (error) {
     if (error instanceof Error) {
       console.error(error.message);

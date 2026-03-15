@@ -60,7 +60,7 @@ export default {
       console.log(error);
 
       message.reply(
-        error?.message || 'There was an error executing the command.'
+        error?.message || 'There was an error executing the command.',
       );
     }
   },

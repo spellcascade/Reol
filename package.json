@@ -32,7 +32,7 @@
     "numeral": "^2.0.6",
     "p-limit": "^3.1.0",
     "reflect-metadata": "^0.2.2",
-    "spotify-url-info": "3.2.6",
+    "spotify-url-info": "3.3.0",
     "sqlite3": "^5.1.7",
     "string-similarity": "^4.0.4",
     "ts-jest": "^29.3.2",

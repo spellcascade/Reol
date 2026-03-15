@@ -7,7 +7,7 @@ import { paths } from '../../../constants/paths';
 
 export async function runYtDlpDownload(
   url: string,
-  duration: number
+  duration: number,
 ): Promise<void> {
   return new Promise<void>((resolve, reject) => {
     const videoId = getYouTubeID(url);
@@ -41,12 +41,13 @@ export async function runYtDlpDownload(
     } catch (err) {
       return reject(err);
     }
+    console.log(ytdlp.spawnargs.join(' '));
 
     ytdlp.stderr?.on('data', (d) =>
-      console.error(`[yt-dlp:${videoId}]`, d.toString())
+      console.error(`[yt-dlp:${videoId}]`, d.toString()),
     );
     ytdlp.stdout?.on('data', (d) =>
-      console.log(`[yt-dlp:${videoId}]`, d.toString())
+      console.log(`[yt-dlp:${videoId}]`, d.toString()),
     );
 
     ytdlp.on('close', async (code) => {
@@ -76,8 +77,10 @@ export async function runYtDlpDownload(
           files
             .filter((f) => f.startsWith(videoId) && f.endsWith('.part.opus'))
             .map((f) =>
-              fs.promises.unlink(path.join(paths.dirs.cache, f)).catch(() => {})
-            )
+              fs.promises
+                .unlink(path.join(paths.dirs.cache, f))
+                .catch(() => {}),
+            ),
         );
 
         resolve();

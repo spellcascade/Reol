@@ -6,13 +6,11 @@ export async function saveSongRequest({
   guildId,
   url,
   title,
-  spotifyId,
 }: {
   url: string;
   title: string;
   authorId: string;
   guildId: string;
-  spotifyId?: string;
 }) {
   const repo = AppDataSource.getRepository(SongRequest);
 
@@ -21,6 +19,5 @@ export async function saveSongRequest({
     title,
     requestedBy: authorId,
     guildId,
-    spotifyId,
   });
 }

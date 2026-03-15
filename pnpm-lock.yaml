@@ -57,8 +57,8 @@ importers:
         specifier: ^0.2.2
         version: 0.2.2
       spotify-url-info:
-        specifier: 3.2.6
-        version: 3.2.6
+        specifier: 3.3.0
+        version: 3.3.0
       sqlite3:
         specifier: ^5.1.7
         version: 5.1.7
@@ -2088,12 +2088,12 @@ packages:
   spawn-command@0.0.2:
     resolution: {integrity: sha512-zC8zGoGkmc8J9ndvml8Xksr1Amk9qBujgbF0JAIWO7kXr43w0h/0GJNM/Vustixu+YE8N/MTrQ7N31FvHUACxQ==}
 
-  spotify-uri@4.0.1:
-    resolution: {integrity: sha512-dEt8UN5fSsZpcPk8HOEHkv29U71kefKjcYt2dopsShrkIZhXtDXe9Xse4xq0GW6831LnEZFry5mpzm1HV/TNLw==}
+  spotify-uri@4.1.0:
+    resolution: {integrity: sha512-SFpBt8pQqO7DOFBsdUjv3GxGZAKYP7UqcTflfE7h3YL1lynl/6Motq7NERoJJR8eF9kXQRSpcdMmV5ou84rbng==}
     engines: {node: '>= 16'}
 
-  spotify-url-info@3.2.6:
-    resolution: {integrity: sha512-AOGU4uyT0FqyEXbyvZc+ZShnTGBY1eMd50BBZBPfiXPT4ihuzmxAmkWj9VzHT9NIjX7MtVDrszATllR8+WeFkw==}
+  spotify-url-info@3.3.0:
+    resolution: {integrity: sha512-Oln8MPghuttL6e2e8NyQg0MilZqEbMYawKZDAMbz1NpSX+on2bEtibKVBPYKlJGU/Lxvo/qXFqydMxa0fKCmwg==}
     engines: {node: '>= 12'}
 
   sprintf-js@1.0.3:
@@ -4826,12 +4826,12 @@ snapshots:
 
   spawn-command@0.0.2: {}
 
-  spotify-uri@4.0.1: {}
+  spotify-uri@4.1.0: {}
 
-  spotify-url-info@3.2.6:
+  spotify-url-info@3.3.0:
     dependencies:
       himalaya: 1.1.1
-      spotify-uri: 4.0.1
+      spotify-uri: 4.1.0
 
   sprintf-js@1.0.3: {}
 

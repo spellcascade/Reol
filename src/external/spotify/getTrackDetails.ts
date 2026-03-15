@@ -1,29 +1,33 @@
-import { spotifyFetch } from './spotifyAxiosClient';
-
-interface TrackArtist {
-  id: string;
-  name: string;
-}
+import fetch from 'isomorphic-unfetch';
+const { getDetails } = require('spotify-url-info')(fetch);
 
 interface TrackDetails {
   id: string;
   name: string;
   durationSec: number;
-  artists: TrackArtist[];
+  artists: string;
 }
 
 export async function getTrackDetails(
   trackId: string,
 ): Promise<TrackDetails | null> {
   try {
-    const details = await spotifyFetch(`/tracks/${trackId}`);
+    const data = await getDetails(`https://open.spotify.com/track/${trackId}`);
+    const track = data?.tracks?.[0];
+    if (!track) return null;
+
+    if (typeof track.name !== 'string') return null;
+    if (typeof track.duration !== 'number') return null;
+    if (typeof track.artist !== 'string') return null;
+    if (track.artist === '') return null;
 
     return {
-      ...details,
-      durationSec: Math.floor(details.duration_ms / 1000),
+      id: trackId,
+      artists: track.artist,
+      name: track.name,
+      durationSec: Math.floor(track.duration / 1000),
     };
-  } catch (error) {
-    console.error('Failed to fetch track details:', error);
-    throw error;
+  } catch {
+    return null;
   }
 }
