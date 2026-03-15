@@ -14,11 +14,11 @@ export default {
       if (!guildId) throw new GuildNotFoundError();
 
       const queue = client.queues.get(guildId);
-      if (!queue || !queue.items.length) {
+      if (!queue || !queue.tracks.length) {
         return message.channel.send('There is no queue.');
       }
 
-      const tracks = queue.items.map((item) => item.track);
+      const tracks = queue.tracks;
 
       const PAGE_SIZE = 10;
       const pages = Math.ceil(tracks.length / PAGE_SIZE);
@@ -30,7 +30,7 @@ export default {
 
       const totalDurationSec = tracks.reduce(
         (acc, track) => acc + track.durationSec,
-        0
+        0,
       );
       const queueDuration = humanizeDuration(totalDurationSec * 1000, {
         round: true,

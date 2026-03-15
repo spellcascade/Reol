@@ -1,7 +1,7 @@
-import { createAudioResource, StreamType } from '@discordjs/voice';
+import { createAudioResource, demuxProbe, StreamType } from '@discordjs/voice';
 import fs from 'fs';
 import { cacheTrack, getCachePath, isOpusCached } from './caching/manager';
-import { execFile, spawn } from 'child_process';
+import { spawn } from 'child_process';
 import getYouTubeID from 'get-youtube-id';
 import { Track } from '../../interfaces/Track';
 import { paths } from '../../constants/paths';
@@ -23,7 +23,7 @@ export async function createResource(
     const cachePath = getCachePath(videoId);
     const isCached = await isOpusCached(videoId);
     if (isCached) {
-      return await createOpusResource(cachePath);
+      return createOpusResource(cachePath);
     }
 
     const downloaded = await cacheTrack(track);
@@ -32,7 +32,7 @@ export async function createResource(
     }
 
     await onUpdate('Success!');
-    return await createOpusResource(downloaded);
+    return createOpusResource(downloaded);
   } catch (err: any) {
     const message = err.message || '';
     await onUpdate(message);
@@ -41,16 +41,10 @@ export async function createResource(
 }
 
 async function createOpusResource(path: string) {
-  const container = await detectOpusContainer(path);
-  let options: { inputType?: StreamType } = {};
+  const stream = fs.createReadStream(path);
+  const { stream: probedStream, type } = await demuxProbe(stream);
 
-  if (container === 'ogg') {
-    options.inputType = StreamType.OggOpus;
-  } else if (container === 'webm') {
-    options.inputType = StreamType.WebmOpus;
-  }
-
-  return createAudioResource(fs.createReadStream(path), options);
+  return createAudioResource(probedStream, { inputType: type });
 }
 
 function createStreamingResource(url: string) {
@@ -98,28 +92,4 @@ function createStreamingResource(url: string) {
   resource.playStream.on('close', () => proc.kill('SIGKILL'));
   resource.playStream.on('error', () => proc.kill('SIGKILL'));
   return resource;
-}
-
-function detectOpusContainer(filePath: string): Promise<'ogg' | 'webm' | null> {
-  return new Promise((resolve) => {
-    execFile(
-      'ffprobe',
-      ['-v', 'error', '-show_format', '-of', 'json', filePath],
-      (err, stdout) => {
-        if (err) return resolve(null);
-
-        try {
-          const info = JSON.parse(stdout);
-          const format = info?.format?.format_name;
-
-          if (format?.includes('ogg')) return resolve('ogg');
-          if (format?.includes('webm')) return resolve('webm');
-
-          resolve(null);
-        } catch {
-          resolve(null);
-        }
-      },
-    );
-  });
 }

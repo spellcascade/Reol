@@ -6,6 +6,7 @@ import {
   TextChannel,
   Options,
 } from 'discord.js';
+import fs from 'fs/promises';
 import { loadCommands } from './utils/loadCommands';
 import { Queue } from './interfaces/Queue';
 import { ENV } from './utils/ENV';
@@ -60,7 +61,11 @@ client.on('ready', async () => {
       ENV.TEXT_CHANNEL_ID,
     ) as TextChannel;
     if (channel) {
+      await fs.rm('./cache', { recursive: true, force: true });
+      await fs.mkdir('./cache');
+
       channel.send(`**${client.user?.username}** is ready!`);
+      channel.send('https://www.youtube.com/watch?v=kAJz7c97Cyo');
     }
   }
 
@@ -68,7 +73,7 @@ client.on('ready', async () => {
 });
 
 client.on('messageCreate', async (message) => {
-  if (message.author.bot && message.webhookId === null) return;
+  // if (message.author.bot && message.webhookId === null) return;
 
   if (
     YOUTUBE_REGEX.test(message.content) ||

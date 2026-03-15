@@ -14,11 +14,7 @@ export default {
         return message.channel.send('There is no queue.');
       }
 
-      if (!queue.items.length) {
-        if (queue.pendingResourceCreations > 0) {
-          return message.channel.send('Track is still being prepared.');
-        }
-
+      if (!queue.tracks.length) {
         return message.channel.send('Nothing is currently playing.');
       }
 

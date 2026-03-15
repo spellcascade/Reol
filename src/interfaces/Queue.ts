@@ -17,7 +17,6 @@ import client from '..';
 import { ENV } from '../utils/ENV';
 import { Track } from './Track';
 import { createResource } from '../utils/track/createResource';
-import { Mutex } from 'async-mutex';
 import { cacheTrack } from '../utils/track/caching/manager';
 
 const wait = promisify(setTimeout);
@@ -29,40 +28,187 @@ interface Options {
   connection: VoiceConnection;
 }
 
-interface QueuedItem {
-  track: Track;
-  resource: AudioResource;
-}
-
 export class Queue {
   public readonly message: Message;
   public readonly connection: VoiceConnection;
   public readonly player: AudioPlayer;
   public readonly textChannel: TextChannel;
   public readonly client = client;
-  public readonly guildId: string;
 
-  public resource?: AudioResource;
-  public items: QueuedItem[] = [];
+  public resource: AudioResource;
+  public tracks: Track[] = [];
+  public volume = 100;
   public muted = false;
   public waitTimeout: NodeJS.Timeout | null;
-  public pendingResourceCreations = 0;
 
+  private queueLock = false;
   private readyLock = false;
   private stopped = false;
-  private pumpMutex = new Mutex();
 
   constructor(options: Options) {
     this.message = options.message;
     this.connection = options.connection;
     this.textChannel = options.textChannel;
-    this.guildId = this.connection.joinConfig.guildId!;
 
     this.player = createAudioPlayer({
       behaviors: { noSubscriber: NoSubscriberBehavior.Play },
     });
     this.connection.subscribe(this.player);
+    this.setupListeners();
+  }
 
+  public enqueue(...tracks: Track[]) {
+    if (this.waitTimeout !== null) clearTimeout(this.waitTimeout);
+    this.waitTimeout = null;
+    this.stopped = false;
+    this.tracks = this.tracks.concat(tracks);
+
+    this.processQueue();
+  }
+
+  public stop() {
+    if (this.stopped) return;
+
+    this.stopped = true;
+    this.tracks = [];
+
+    this.player.stop();
+
+    this.resetVoiceStatus();
+    this.sendTextMessage('Queue ended');
+
+    if (this.waitTimeout !== null) return;
+
+    this.waitTimeout = setTimeout(() => {
+      if (this.connection.state.status !== VoiceConnectionStatus.Destroyed) {
+        try {
+          this.connection.destroy();
+        } catch {}
+      }
+      client.queues.delete(this.message.guild!.id);
+
+      this.sendTextMessage('Left voice channel');
+    }, ENV.STAY_TIME_IN_SECONDS * 1000);
+  }
+
+  public async processQueue(): Promise<void> {
+    const next = this.tracks[1];
+    if (next && next.durationSec <= MAX_CACHE_DURATION_SEC) {
+      cacheTrack(next);
+    }
+
+    if (this.queueLock || this.player.state.status !== AudioPlayerStatus.Idle) {
+      return;
+    }
+
+    if (!this.tracks.length) {
+      return this.stop();
+    }
+
+    this.queueLock = true;
+
+    try {
+      const resource = await this.loadTrackResource(this.tracks[0]);
+      if (!resource) throw new Error('No resource');
+
+      this.resource = resource;
+      this.player.play(this.resource);
+
+      this.resource.volume?.setVolumeLogarithmic(this.volume / 100);
+    } catch (error) {
+      console.error('createResource error', error);
+
+      return this.processQueue();
+    } finally {
+      this.queueLock = false;
+    }
+  }
+
+  private async sendPlayingMessage() {
+    try {
+      const track = this.tracks[0];
+      return this.sendTextMessage(
+        `**Now playing**: ${track.url}` +
+          (track.requestedBy ? `\nRequested by **${track.requestedBy}**` : ''),
+      );
+    } catch (error: any) {
+      console.error(error);
+      this.sendTextMessage(error.message);
+      return;
+    }
+  }
+
+  private async sendTextMessage(message: string) {
+    try {
+      return this.textChannel.send(message);
+    } catch (error: any) {
+      console.error('Error sending text message', error);
+      return;
+    }
+  }
+
+  public shuffle() {
+    // we don't want to shuffle the first track
+    for (let i = this.tracks.length - 1; i > 1; i--) {
+      let j = 1 + Math.floor(Math.random() * i);
+      [this.tracks[i], this.tracks[j]] = [this.tracks[j], this.tracks[i]];
+    }
+  }
+
+  async setPlayingVoiceStatus() {
+    const track = this.tracks[0];
+    if (!track) return;
+
+    const artist = track.metadata?.artist;
+    const title = track.metadata?.title ?? track.title;
+    const status = escapeMarkdown(
+      (artist ? `${artist} - ${title}` : title).slice(0, 128),
+    );
+
+    try {
+      await this.client.rest.put(
+        `/channels/${this.connection.joinConfig.channelId}/voice-status`,
+        { body: { status } },
+      );
+    } catch (err) {
+      console.debug('Failed to update voice channel status:', err);
+    }
+  }
+
+  async resetVoiceStatus() {
+    try {
+      await this.client.rest.put(
+        `/channels/${this.connection.joinConfig.channelId}/voice-status`,
+        { body: { status: '' } },
+      );
+    } catch (err) {
+      console.debug('Failed to update voice channel status:', err);
+    }
+  }
+
+  private async loadTrackResource(track: Track) {
+    const panel = await this.textChannel.send(
+      renderTrackStatus(track, 'Processing…'),
+    );
+
+    const updatePanel = async (text: string) => {
+      await panel.edit(renderTrackStatus(track, text));
+    };
+
+    try {
+      const shouldCache = track.durationSec <= MAX_CACHE_DURATION_SEC;
+      const resource = await createResource(track, updatePanel, shouldCache);
+
+      panel.delete().catch(console.error);
+      return resource;
+    } catch (err: any) {
+      const msg = err?.message || 'Failed to load track';
+      await updatePanel(`Error: ${msg}`);
+      throw msg;
+    }
+  }
+
+  private setupListeners() {
     const networkStateChangeHandler = (_: any, newNetworkState: any) => {
       const newUdp = Reflect.get(newNetworkState, 'udp');
       clearInterval(newUdp?.keepAliveInterval);
@@ -132,16 +278,24 @@ export class Queue {
     this.player.on(
       'stateChange' as any,
       async (oldState: AudioPlayerState, newState: AudioPlayerState) => {
-        if (this.stopped) return;
-
         // Track finished
         if (
           oldState.status !== AudioPlayerStatus.Idle &&
           newState.status === AudioPlayerStatus.Idle
         ) {
-          this.items.shift();
+          if (this.tracks.length) {
+            this.tracks.push(this.tracks.shift()!);
+          } else {
+            this.tracks.shift();
 
-          void this.pump();
+            if (this.tracks.length === 0) {
+              return this.stop();
+            }
+          }
+
+          if (this.tracks.length) {
+            this.processQueue();
+          }
           return;
         }
 
@@ -157,193 +311,24 @@ export class Queue {
     );
 
     this.player.on('error', (error) => {
-      if (this.stopped) return;
-
       console.error(error);
-      this.items.shift();
 
-      void this.pump();
-    });
-  }
-
-  public async enqueue(
-    triggerMessage: Message,
-    track: Track,
-  ): Promise<boolean> {
-    if (this.waitTimeout !== null) clearTimeout(this.waitTimeout);
-    this.waitTimeout = null;
-    this.stopped = false;
-    this.pendingResourceCreations += 1;
-
-    const trackStatusMessage = await triggerMessage.reply({
-      content: 'Preparing track...',
-      allowedMentions: { repliedUser: false },
-    });
-
-    const updateMessage = async (text: string) => {
-      try {
-        await trackStatusMessage.edit(text);
-      } catch {}
-    };
-
-    try {
-      const shouldCache = track.durationSec <= MAX_CACHE_DURATION_SEC;
-      const resource = await createResource(track, updateMessage, shouldCache);
-
-      await trackStatusMessage.delete().catch(() => {});
-      this.items.push({ track, resource });
-
-      if (this.player.state.status === AudioPlayerStatus.Idle) {
-        await this.pump();
+      if (this.tracks.length) {
+        this.tracks.push(this.tracks.shift()!);
       } else {
-        this.preCacheUpcoming();
+        this.tracks.shift();
       }
 
-      return true;
-    } catch (err: any) {
-      const msg = err?.message || 'Failed to load track';
-      await updateMessage(`Error: ${msg}`);
-      return false;
-    } finally {
-      this.pendingResourceCreations = Math.max(
-        0,
-        this.pendingResourceCreations - 1,
-      );
-
-      if (
-        !this.stopped &&
-        this.pendingResourceCreations === 0 &&
-        this.items.length === 0 &&
-        this.player.state.status === AudioPlayerStatus.Idle
-      ) {
-        this.stop();
-      }
-    }
-  }
-
-  public stop() {
-    if (this.stopped) return;
-
-    this.stopped = true;
-    this.items = [];
-
-    this.player.stop();
-
-    this.resetVoiceStatus();
-    this.sendTextMessage('Queue ended');
-
-    if (this.waitTimeout !== null) return;
-
-    this.waitTimeout = setTimeout(() => {
-      this.waitTimeout = null;
-
-      if (
-        this.player.state.status !== AudioPlayerStatus.Idle ||
-        this.items.length > 0
-      ) {
-        return;
-      }
-
-      if (this.connection.state.status !== VoiceConnectionStatus.Destroyed) {
-        try {
-          this.connection.destroy();
-        } catch {}
-      }
-      client.queues.delete(this.guildId);
-    }, ENV.STAY_TIME_IN_SECONDS * 1000);
-  }
-
-  private async pump(): Promise<void> {
-    if (this.stopped) return;
-
-    await this.pumpMutex.runExclusive(async () => {
-      if (this.stopped) return;
-      if (this.player.state.status !== AudioPlayerStatus.Idle) return;
-
-      if (!this.items.length) {
-        if (this.pendingResourceCreations > 0) return;
-        this.stop();
-        return;
-      }
-
-      const current = this.items[0];
-      this.resource = current.resource;
-      this.player.play(current.resource);
-      current.resource.volume?.setVolumeLogarithmic(1); // volume 100
-
-      this.preCacheUpcoming();
+      this.processQueue();
     });
   }
+}
 
-  private async sendPlayingMessage() {
-    try {
-      const track = this.items[0]?.track;
-      if (!track) return;
-
-      return this.sendTextMessage(
-        `**Now playing**: ${track.url}` +
-          (track.requestedBy ? `\nRequested by **${track.requestedBy}**` : ''),
-      );
-    } catch (error: any) {
-      console.error(error);
-      this.sendTextMessage(error.message);
-      return;
-    }
-  }
-
-  private async sendTextMessage(message: string) {
-    try {
-      return this.textChannel.send(message);
-    } catch (error: any) {
-      console.error('Error sending text message', error);
-      return;
-    }
-  }
-
-  public shuffle() {
-    for (let i = this.items.length - 1; i >= 2; i--) {
-      const j = 1 + Math.floor(Math.random() * (i - 1 + 1)); // [1..i]
-      [this.items[i], this.items[j]] = [this.items[j], this.items[i]];
-    }
-  }
-
-  async setPlayingVoiceStatus() {
-    const track = this.items[0]?.track;
-    if (!track) return;
-
-    const artist = track.metadata?.artist;
-    const title = track.metadata?.title ?? track.title;
-    const status = escapeMarkdown(
-      (artist ? `${artist} - ${title}` : title).slice(0, 128),
-    );
-
-    try {
-      await this.client.rest.put(
-        `/channels/${this.connection.joinConfig.channelId}/voice-status`,
-        { body: { status } },
-      );
-    } catch (err) {
-      console.debug('Failed to update voice channel status:', err);
-    }
-  }
-
-  async resetVoiceStatus() {
-    try {
-      await this.client.rest.put(
-        `/channels/${this.connection.joinConfig.channelId}/voice-status`,
-        { body: { status: '' } },
-      );
-    } catch (err) {
-      console.debug('Failed to update voice channel status:', err);
-    }
-  }
-
-  private preCacheUpcoming() {
-    const upcoming = this.items[1]?.track;
-    if (upcoming && upcoming.durationSec <= MAX_CACHE_DURATION_SEC) {
-      void cacheTrack(upcoming);
-    }
-  }
+function renderTrackStatus(track: Track, status: string) {
+  return [
+    `**┌ TRACK:   ${escapeMarkdown(track.title)}**`,
+    `**└ STATUS:  ${status}**`,
+  ].join('\n');
 }
 
 function escapeMarkdown(text: string) {

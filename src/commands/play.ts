@@ -3,7 +3,6 @@ import { Queue } from '../interfaces/Queue';
 import {
   DiscordGatewayAdapterCreator,
   joinVoiceChannel,
-  VoiceConnectionStatus,
 } from '@discordjs/voice';
 import { ENV } from '../utils/ENV';
 import { Command } from '../interfaces/Command';
@@ -59,9 +58,9 @@ export default {
 
       const queue = client.queues.get(guildId);
       if (queue) {
-        const enqueued = await queue.enqueue(message, track);
+        queue.enqueue(track);
 
-        if (enqueued && queue.items.length > 1) {
+        if (queue.tracks.length > 1) {
           message.channel.send(`Added to queue: **${track.title}**`);
         }
 
@@ -81,18 +80,7 @@ export default {
       });
 
       client.queues.set(guildId, newQueue);
-      const enqueued = await newQueue.enqueue(message, track);
-
-      if (!enqueued && newQueue.items.length === 0) {
-        if (
-          newQueue.connection.state.status !== VoiceConnectionStatus.Destroyed
-        ) {
-          try {
-            newQueue.connection.destroy();
-          } catch {}
-        }
-        client.queues.delete(guildId);
-      }
+      newQueue.enqueue(track);
     } catch (error: any) {
       console.error(error);
 
