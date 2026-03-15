@@ -306,10 +306,6 @@ export class Queue {
   }
 }
 
-function renderTrackStatus(status: string) {
-  return status;
-}
-
 function escapeMarkdown(text: string) {
   var unescaped = text.replace(/\\(\*|_|`|~|\\)/g, '$1');
   var escaped = unescaped.replace(/(\*|_|`|~|\\)/g, '\\$1');
