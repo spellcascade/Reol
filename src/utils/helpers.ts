@@ -13,12 +13,26 @@ const SPOTIFY_PLAYLIST_REGEX =
 const URL_REGEX =
   /^https?:\/\/(www\.)?[-a-zA-Z0-9@:%._\+~#=]{1,256}\.[a-zA-Z0-9()]{1,6}\b([-a-zA-Z0-9()@:%_\+.~#?&//=]*)/;
 
+const TIDAL_TRACK_REGEX =
+  /^https:\/\/(?:listen\.tidal\.com|tidal\.com)\/(?:browse\/)?track\/(\d+)(?:\/.*)?$/;
+
 export function isYoutubeURL(url: string): boolean {
   return YOUTUBE_REGEX.test(url);
 }
 
 export function isSpotifyURL(url: string): boolean {
   return SPOTIFY_REGEX.test(url);
+}
+
+export function isTidalTrack(url: string): boolean {
+  return TIDAL_TRACK_REGEX.test(url);
+}
+
+export function getTidalTrackId(url: string): number | null {
+  const match = TIDAL_TRACK_REGEX.exec(url);
+  if (!match) return null;
+
+  return Number(match[1]);
 }
 
 export function isPlaylist(url: string): boolean {

@@ -28,7 +28,6 @@ export async function getSpotifyTrack(url: string): Promise<Track> {
           metadata: {
             artist: spotifyTrack.artists,
             title: spotifyTrack.name,
-            spotifyTrackId: url.match(SPOTIFY_TRACK_REGEX)?.[1],
           },
         };
       } catch (error) {

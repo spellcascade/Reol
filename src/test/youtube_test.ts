@@ -1,15 +1,13 @@
-import { getTrackDetails } from '../external/spotify/getTrackDetails';
+import { getTidalTrack } from '../utils/tidal/getTidalTrack';
 
 async function main() {
   try {
-    const track = await getTrackDetails('0wbDgMuAoy7O7pL3a69uZx');
+    const url = 'https://tidal.com/track/139130240/u';
+
+    const track = await getTidalTrack(url);
     console.log(track);
   } catch (error) {
-    if (error instanceof Error) {
-      console.error(error.message);
-    } else {
-      console.error('Unexpected error:', error);
-    }
+    console.log(error);
   }
 }
 

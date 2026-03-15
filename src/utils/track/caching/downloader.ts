@@ -41,7 +41,7 @@ export async function runYtDlpDownload(
     } catch (err) {
       return reject(err);
     }
-    console.log(ytdlp.spawnargs.join(' '));
+    console.log(`[yt-dlp:command] ${ytdlp.spawnargs.join(' ')})`);
 
     ytdlp.stderr?.on('data', (d) =>
       console.error(`[yt-dlp:${videoId}]`, d.toString()),

@@ -9,7 +9,7 @@ import {
 import { loadCommands } from './utils/loadCommands';
 import { Queue } from './interfaces/Queue';
 import { ENV } from './utils/ENV';
-import { SPOTIFY_REGEX, YOUTUBE_REGEX } from './utils/helpers';
+import { SPOTIFY_REGEX, YOUTUBE_REGEX, isTidalTrack } from './utils/helpers';
 import { AppDataSource } from './db';
 import { Command } from './interfaces/Command';
 
@@ -57,7 +57,7 @@ client.on('ready', async () => {
   if (ENV.TEXT_CHANNEL_ID) {
     // send a message to the channel
     const channel = client.channels.cache.get(
-      ENV.TEXT_CHANNEL_ID
+      ENV.TEXT_CHANNEL_ID,
     ) as TextChannel;
     if (channel) {
       channel.send(`**${client.user?.username}** is ready!`);
@@ -73,6 +73,7 @@ client.on('messageCreate', async (message) => {
   if (
     YOUTUBE_REGEX.test(message.content) ||
     SPOTIFY_REGEX.test(message.content) ||
+    isTidalTrack(message.content) ||
     message.content.startsWith('!p ')
   ) {
     let query = message.content;

@@ -1,6 +1,7 @@
 import { Track } from '../interfaces/Track';
-import { isSpotifyURL, isYoutubeURL } from './helpers';
+import { isSpotifyURL, isTidalTrack, isYoutubeURL } from './helpers';
 import { getSpotifyTrack } from './spotify/getSpotifyTrack';
+import { getTidalTrack } from './tidal/getTidalTrack';
 import {
   getYoutubeTrackByQuery,
   getYoutubeTrackByURL,
@@ -8,15 +9,16 @@ import {
 
 export async function getTrack(query: string): Promise<Track> {
   try {
-    const isSpotify = isSpotifyURL(query);
-    const isYoutube = isYoutubeURL(query);
-
-    if (isYoutube) {
+    if (isYoutubeURL(query)) {
       return await getYoutubeTrackByURL(query);
     }
 
-    if (isSpotify) {
+    if (isSpotifyURL(query)) {
       return await getSpotifyTrack(query);
+    }
+
+    if (isTidalTrack(query)) {
+      return await getTidalTrack(query);
     }
 
     return getYoutubeTrackByQuery(query);
