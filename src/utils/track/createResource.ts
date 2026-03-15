@@ -1,95 +1,85 @@
-import { createAudioResource, demuxProbe, StreamType } from '@discordjs/voice';
-import fs from 'fs';
-import { cacheTrack, getCachePath, isOpusCached } from './caching/manager';
+import { createAudioResource, demuxProbe } from '@discordjs/voice';
 import { spawn } from 'child_process';
-import getYouTubeID from 'get-youtube-id';
-import { Track } from '../../interfaces/Track';
 import { paths } from '../../constants/paths';
+import fs from 'fs';
+import path from 'path';
+import appRootPath from 'app-root-path';
 
-export async function createResource(
-  track: Track,
-  onUpdate: (msg: string) => Promise<void>,
-  shouldCache?: boolean,
-) {
+const logPath = path.join(appRootPath.path, 'yt-dlp.log');
+const logStream = fs.createWriteStream(logPath, { flags: 'a' });
+
+export async function createResource(url: string) {
+  let proc: any;
   try {
-    const videoId = getYouTubeID(track.url);
-    if (!videoId) {
-      throw new Error('Failed to extract videoId');
-    }
-    if (!shouldCache) {
-      return createStreamingResource(track.url);
+    proc = spawn(
+      'yt-dlp',
+      [
+        '--no-cache-dir',
+        '--ignore-config',
+        '--no-playlist',
+        '--newline',
+        '-vU',
+        '--format',
+        'bestaudio[acodec=opus][ext=webm]/bestaudio[acodec=opus]/bestaudio[ext=webm]/bestaudio[ext=m4a]/bestaudio/best',
+        '--concurrent-fragments',
+        '4',
+        '--fragment-retries',
+        '10',
+        '--retry-sleep',
+        '0.5',
+        '--sleep-interval',
+        '2',
+        '--cookies',
+        paths.cookies,
+        '-o',
+        '-',
+        url,
+      ],
+      {
+        stdio: ['ignore', 'pipe', 'pipe'],
+      },
+    );
+
+    proc.on('error', (err: any) => {
+      console.error('[yt-dlp error] Failed to spawn yt-dlp:', err);
+    });
+
+    proc.stderr?.on('data', (chunk: any) => {
+      const lines = chunk.toString().split('\n');
+
+      for (const line of lines) {
+        if (!line.trim()) continue;
+
+        logStream.write(`[${new Date().toISOString()}] ${line.trim()}\n`);
+      }
+    });
+
+    if (!proc.stdout) {
+      throw new Error('No stream from yt-dlp');
     }
 
-    const cachePath = getCachePath(videoId);
-    const isCached = await isOpusCached(videoId);
-    if (isCached) {
-      return createOpusResource(cachePath);
+    const { stream, type } = await demuxProbe(proc.stdout);
+
+    const resource = createAudioResource(stream, {
+      inputType: type,
+    });
+
+    const killProc = () => {
+      if (!proc.killed) {
+        proc.kill('SIGKILL');
+      }
+    };
+
+    resource.playStream.on('close', killProc);
+    resource.playStream.on('error', killProc);
+
+    return resource;
+  } catch (err: unknown) {
+    console.log('error creating resource', err);
+    if (proc && !proc.killed) {
+      proc.kill('SIGKILL');
     }
 
-    const downloaded = await cacheTrack(track);
-    if (!downloaded) {
-      throw new Error('Failed to download track');
-    }
-
-    await onUpdate('Success!');
-    return createOpusResource(downloaded);
-  } catch (err: any) {
-    const message = err.message || '';
-    await onUpdate(message);
     throw err;
   }
-}
-
-async function createOpusResource(path: string) {
-  const stream = fs.createReadStream(path);
-  const { stream: probedStream, type } = await demuxProbe(stream);
-
-  return createAudioResource(probedStream, { inputType: type });
-}
-
-function createStreamingResource(url: string) {
-  const proc = spawn(
-    'yt-dlp',
-    [
-      '--no-cache-dir',
-      '--format',
-      'bestaudio[ext=webm][acodec=opus]/bestaudio[acodec=opus]',
-      '--concurrent-fragments',
-      '4',
-      '--fragment-retries',
-      '10',
-      '--sleep-interval',
-      '2',
-      '--retry-sleep',
-      '0.5',
-      '--ffmpeg-location',
-      '/usr/bin/ffmpeg',
-      '--cookies',
-      paths.cookies,
-      '-o',
-      '-',
-      url,
-    ],
-    {
-      stdio: ['ignore', 'pipe', 'pipe'],
-    },
-  );
-
-  proc.on('error', (err) => {
-    console.error('[STREAM] Failed to spawn yt-dlp:', err);
-  });
-
-  proc.stderr?.on('data', (d) => {
-    console.warn('[STREAM STDERR]', d.toString());
-  });
-
-  if (!proc.stdout) throw new Error('No stream from yt-dlp');
-
-  const resource = createAudioResource(proc.stdout, {
-    inputType: StreamType.WebmOpus,
-  });
-
-  resource.playStream.on('close', () => proc.kill('SIGKILL'));
-  resource.playStream.on('error', () => proc.kill('SIGKILL'));
-  return resource;
 }

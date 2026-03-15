@@ -23,8 +23,6 @@ export default {
       }
 
       queue.player.stop(true);
-
-      return message.channel.send('Track skipped');
     } catch (error) {
       console.log(error);
 

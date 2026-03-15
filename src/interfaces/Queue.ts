@@ -17,10 +17,8 @@ import client from '..';
 import { ENV } from '../utils/ENV';
 import { Track } from './Track';
 import { createResource } from '../utils/track/createResource';
-import { cacheTrack } from '../utils/track/caching/manager';
 
 const wait = promisify(setTimeout);
-const MAX_CACHE_DURATION_SEC = 600;
 
 interface Options {
   message: Message;
@@ -74,7 +72,7 @@ export class Queue {
 
     this.player.stop();
 
-    this.resetVoiceStatus();
+    this.resetVoiceStatusMessage();
     this.sendTextMessage('Queue ended');
 
     if (this.waitTimeout !== null) return;
@@ -92,35 +90,39 @@ export class Queue {
   }
 
   public async processQueue(): Promise<void> {
-    const next = this.tracks[1];
-    if (next && next.durationSec <= MAX_CACHE_DURATION_SEC) {
-      cacheTrack(next);
-    }
-
-    if (this.queueLock || this.player.state.status !== AudioPlayerStatus.Idle) {
+    if (this.queueLock) return;
+    if (this.player.state.status !== AudioPlayerStatus.Idle) return;
+    if (this.tracks.length === 0) {
+      this.stop();
       return;
-    }
-
-    if (!this.tracks.length) {
-      return this.stop();
     }
 
     this.queueLock = true;
 
     try {
-      const resource = await this.loadTrackResource(this.tracks[0]);
-      if (!resource) throw new Error('No resource');
+      const track = this.tracks[0];
+      const resource = await this.loadTrackResource(track);
 
       this.resource = resource;
-      this.player.play(this.resource);
-
-      this.resource.volume?.setVolumeLogarithmic(this.volume / 100);
+      this.player.play(resource);
+      resource.volume?.setVolumeLogarithmic(this.volume / 100);
     } catch (error) {
       console.error('createResource error', error);
-
-      return this.processQueue();
+      this.tracks.shift();
     } finally {
       this.queueLock = false;
+    }
+
+    if (
+      this.tracks.length === 0 &&
+      this.player.state.status === AudioPlayerStatus.Idle
+    ) {
+      this.stop();
+      return;
+    }
+
+    if (this.player.state.status === AudioPlayerStatus.Idle) {
+      void this.processQueue();
     }
   }
 
@@ -140,7 +142,7 @@ export class Queue {
 
   private async sendTextMessage(message: string) {
     try {
-      return this.textChannel.send(message);
+      this.textChannel.send(message);
     } catch (error: any) {
       console.error('Error sending text message', error);
       return;
@@ -148,7 +150,6 @@ export class Queue {
   }
 
   public shuffle() {
-    // we don't want to shuffle the first track
     for (let i = this.tracks.length - 1; i > 1; i--) {
       let j = 1 + Math.floor(Math.random() * i);
       [this.tracks[i], this.tracks[j]] = [this.tracks[j], this.tracks[i]];
@@ -175,7 +176,7 @@ export class Queue {
     }
   }
 
-  async resetVoiceStatus() {
+  async resetVoiceStatusMessage() {
     try {
       await this.client.rest.put(
         `/channels/${this.connection.joinConfig.channelId}/voice-status`,
@@ -186,25 +187,17 @@ export class Queue {
     }
   }
 
-  private async loadTrackResource(track: Track) {
-    const panel = await this.textChannel.send(
-      renderTrackStatus(track, 'Processing…'),
-    );
-
-    const updatePanel = async (text: string) => {
-      await panel.edit(renderTrackStatus(track, text));
-    };
+  private async loadTrackResource(track: Track): Promise<AudioResource> {
+    const message = await this.textChannel.send('**Loading track...**');
 
     try {
-      const shouldCache = track.durationSec <= MAX_CACHE_DURATION_SEC;
-      const resource = await createResource(track, updatePanel, shouldCache);
-
-      panel.delete().catch(console.error);
-      return resource;
-    } catch (err: any) {
-      const msg = err?.message || 'Failed to load track';
-      await updatePanel(`Error: ${msg}`);
-      throw msg;
+      return await createResource(track.url);
+    } catch (err: unknown) {
+      const errMsg = err instanceof Error ? err.message : 'Unknown error';
+      await message.edit(`Error loading track: ${errMsg}`);
+      throw new Error(errMsg);
+    } finally {
+      void message.delete().catch(console.error);
     }
   }
 
@@ -283,19 +276,13 @@ export class Queue {
           oldState.status !== AudioPlayerStatus.Idle &&
           newState.status === AudioPlayerStatus.Idle
         ) {
-          if (this.tracks.length) {
-            this.tracks.push(this.tracks.shift()!);
-          } else {
-            this.tracks.shift();
+          this.tracks.shift();
 
-            if (this.tracks.length === 0) {
-              return this.stop();
-            }
+          if (this.tracks.length === 0) {
+            return this.stop();
           }
 
-          if (this.tracks.length) {
-            this.processQueue();
-          }
+          void this.processQueue();
           return;
         }
 
@@ -313,22 +300,14 @@ export class Queue {
     this.player.on('error', (error) => {
       console.error(error);
 
-      if (this.tracks.length) {
-        this.tracks.push(this.tracks.shift()!);
-      } else {
-        this.tracks.shift();
-      }
-
-      this.processQueue();
+      this.tracks.shift();
+      void this.processQueue();
     });
   }
 }
 
-function renderTrackStatus(track: Track, status: string) {
-  return [
-    `**┌ TRACK:   ${escapeMarkdown(track.title)}**`,
-    `**└ STATUS:  ${status}**`,
-  ].join('\n');
+function renderTrackStatus(status: string) {
+  return status;
 }
 
 function escapeMarkdown(text: string) {

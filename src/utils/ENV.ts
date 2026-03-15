@@ -17,5 +17,4 @@ export const ENV = {
   PRIZE_POOL_CHANNEL_ID: process.env.PRIZE_POOL_CHANNEL_ID as string,
   ADMINS: process.env.ADMINS?.split(',') || [],
   IS_PROD: process.env.NODE_ENV === 'production',
-  MAX_CACHE_SIZE_GB: Number(process.env.MAX_CACHE_SIZE_GB) || 1,
 };

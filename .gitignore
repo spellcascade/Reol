@@ -9,3 +9,4 @@ cookies.txt
 *.sqlite
 .pnpm-debug.log
 logs/
+yt-dlp.log
