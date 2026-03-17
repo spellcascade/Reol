@@ -1,85 +1,69 @@
 import { createAudioResource, demuxProbe } from '@discordjs/voice';
-import { spawn } from 'child_process';
 import { paths } from '../../constants/paths';
-import fs from 'fs';
-import path from 'path';
-import appRootPath from 'app-root-path';
+import { YtDlp, YtDlpError } from '../../external/ytdlp/ytdlp';
 
-const logPath = path.join(appRootPath.path, 'yt-dlp.log');
-const logStream = fs.createWriteStream(logPath, { flags: 'a' });
+const ytDlp = new YtDlp({
+  cacheDir: paths.dirs.cache,
+  cookiesPath: paths.ytCookies,
+});
 
-export async function createResource(url: string) {
-  let proc: any;
+export async function createResource(
+  url: string,
+  expectedDurationSec?: number,
+) {
+  let audio: Awaited<ReturnType<YtDlp['getStream']>> | undefined;
+
   try {
-    proc = spawn(
-      'yt-dlp',
-      [
-        '--no-cache-dir',
-        '--ignore-config',
-        '--no-playlist',
-        '--newline',
-        '-vU',
-        '--format',
-        'bestaudio[acodec=opus][ext=webm]/bestaudio[acodec=opus]/bestaudio[ext=webm]/bestaudio[ext=m4a]/bestaudio/best',
-        '--concurrent-fragments',
-        '4',
-        '--fragment-retries',
-        '10',
-        '--retry-sleep',
-        '0.5',
-        '--sleep-interval',
-        '2',
-        '--cookies',
-        paths.cookies,
-        '-o',
-        '-',
-        url,
-      ],
-      {
-        stdio: ['ignore', 'pipe', 'pipe'],
-      },
-    );
-
-    proc.on('error', (err: any) => {
-      console.error('[yt-dlp error] Failed to spawn yt-dlp:', err);
-    });
-
-    proc.stderr?.on('data', (chunk: any) => {
-      const lines = chunk.toString().split('\n');
-
-      for (const line of lines) {
-        if (!line.trim()) continue;
-
-        logStream.write(`[${new Date().toISOString()}] ${line.trim()}\n`);
-      }
-    });
-
-    if (!proc.stdout) {
-      throw new Error('No stream from yt-dlp');
-    }
-
-    const { stream, type } = await demuxProbe(proc.stdout);
-
+    audio = await ytDlp.getStream(url, expectedDurationSec);
+    const currentAudio = audio;
+    const { stream, type } = await demuxProbe(currentAudio.stream);
     const resource = createAudioResource(stream, {
       inputType: type,
     });
 
-    const killProc = () => {
-      if (!proc.killed) {
-        proc.kill('SIGKILL');
-      }
-    };
-
-    resource.playStream.on('close', killProc);
-    resource.playStream.on('error', killProc);
+    resource.playStream.on('close', () => currentAudio.close());
+    resource.playStream.on('error', () => currentAudio.close());
 
     return resource;
-  } catch (err: unknown) {
-    console.log('error creating resource', err);
-    if (proc && !proc.killed) {
-      proc.kill('SIGKILL');
+  } catch (err) {
+    audio?.close();
+
+    if (err instanceof YtDlpError) {
+      err.userMessage = getYtDlpUserMessage(err);
     }
 
     throw err;
+  }
+}
+
+export function getYtDlpUserMessage(err: unknown): string {
+  if (!(err instanceof YtDlpError)) {
+    return 'Cannot load track.';
+  }
+
+  switch (err.kind) {
+    case 'bad_url':
+      return 'Invalid YouTube URL.';
+    case 'blocked':
+      return 'YouTube temporarily blocked the download. Please try again.';
+    case 'premium':
+      return 'Cannot play premium video.';
+    case 'rate_limited':
+      return 'YouTube rate limited the bot. Please try again later.';
+    case 'unavailable':
+      return 'This video is unavailable.';
+    case 'private':
+      return 'This video is private.';
+    case 'age_restricted':
+      return 'This video is age restricted.';
+    case 'format':
+      return 'Could not extract audio from this video.';
+    case 'network':
+      return 'Network error while loading the track.';
+    case 'invalid_file':
+      return 'Downloaded audio is invalid or incomplete.';
+    case 'unknown':
+    default:
+      return 'Cannot load track.';
   }
 }

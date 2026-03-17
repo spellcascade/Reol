@@ -9,7 +9,7 @@ function formatCookies(cookies: Record<string, string>): string {
 }
 
 async function parseNetscapeCookies(
-  filePath: string
+  filePath: string,
 ): Promise<Record<string, string>> {
   const cookies: Record<string, string> = {};
   const fileContent = await fs.readFile(filePath, 'utf-8');
@@ -35,10 +35,10 @@ async function parseNetscapeCookies(
  * This function only works with Netscape cookies.
  */
 export async function getYtCookiesString(): Promise<string | null> {
-  const exists = await fileExists(paths.cookies);
+  const exists = await fileExists(paths.ytCookies);
   if (!exists) return null;
 
-  const cookies = await parseNetscapeCookies(paths.cookies);
+  const cookies = await parseNetscapeCookies(paths.ytCookies);
   const cookieStr = formatCookies(cookies);
 
   return cookieStr;

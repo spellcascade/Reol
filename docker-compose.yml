@@ -13,6 +13,7 @@ services:
 
     volumes:
       - ./cookies.txt:/app/cookies.txt:rw
+      - ./cache:/app/cache:rw
       - ./src/db/db.sqlite:/app/src/db/db.sqlite:rw
 
     command: ['node', 'dist/index.js']

@@ -17,6 +17,7 @@ import client from '..';
 import { ENV } from '../utils/ENV';
 import { Track } from './Track';
 import { createResource } from '../utils/track/createResource';
+import { YtDlpError } from '../external/ytdlp/ytdlp';
 
 const wait = promisify(setTimeout);
 
@@ -188,16 +189,18 @@ export class Queue {
   }
 
   private async loadTrackResource(track: Track): Promise<AudioResource> {
-    const message = await this.textChannel.send('**Loading track...**');
+    const message = await this.message.reply('**Loading track...**');
 
     try {
-      return await createResource(track.url);
-    } catch (err: unknown) {
-      const errMsg = err instanceof Error ? err.message : 'Unknown error';
-      await message.edit(`Error loading track: ${errMsg}`);
-      throw new Error(errMsg);
-    } finally {
-      void message.delete().catch(console.error);
+      return await createResource(track.url, track.durationSec);
+    } catch (err) {
+      const userMessage =
+        err instanceof YtDlpError
+          ? (err.userMessage ?? 'Cannot load track.')
+          : 'Cannot load track.';
+
+      await message.edit(`**${userMessage}**`);
+      throw err;
     }
   }
 

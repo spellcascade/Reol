@@ -13,10 +13,6 @@ import { SPOTIFY_REGEX, YOUTUBE_REGEX, isTidalTrack } from './utils/helpers';
 import { AppDataSource } from './db';
 import { Command } from './interfaces/Command';
 
-if (!ENV.TOKEN) {
-  throw new Error('TOKEN is not defined');
-}
-
 export class MyClient extends Client {
   public commands: Collection<string, any>;
   public queues = new Collection<Snowflake, Queue>();

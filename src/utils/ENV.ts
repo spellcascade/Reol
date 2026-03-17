@@ -14,7 +14,6 @@ export const ENV = {
   STAY_TIME_IN_SECONDS: Number(process.env.STAY_TIME_IN_SECONDS) || 60,
   USE_DB: process.env.USE_DB || false,
   DB_PATH: process.env.DB_PATH || 'db/db.sqlite',
-  PRIZE_POOL_CHANNEL_ID: process.env.PRIZE_POOL_CHANNEL_ID as string,
   ADMINS: process.env.ADMINS?.split(',') || [],
   IS_PROD: process.env.NODE_ENV === 'production',
 };
