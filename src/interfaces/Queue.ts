@@ -189,10 +189,13 @@ export class Queue {
   }
 
   private async loadTrackResource(track: Track): Promise<AudioResource> {
-    const message = await this.message.reply('**Loading track...**');
+    const message = await this.textChannel.send('**Loading track...**');
+    let success = false;
 
     try {
-      return await createResource(track.url, track.durationSec);
+      const resource = await createResource(track.url, track.durationSec);
+      success = true;
+      return resource;
     } catch (err) {
       const userMessage =
         err instanceof YtDlpError
@@ -201,6 +204,10 @@ export class Queue {
 
       await message.edit(`**${userMessage}**`);
       throw err;
+    } finally {
+      if (success) {
+        message.delete().catch(() => {});
+      }
     }
   }
 
