@@ -16,6 +16,7 @@ import { Command } from './interfaces/Command';
 export class MyClient extends Client {
   public commands: Collection<string, any>;
   public queues = new Collection<Snowflake, Queue>();
+  public pendingQueues = new Collection<Snowflake, Promise<Queue>>();
 
   constructor(options: any) {
     super(options);
@@ -41,6 +42,7 @@ const client = new Client({
 
 client.commands = new Collection();
 client.queues = new Collection<Snowflake, Queue>();
+client.pendingQueues = new Collection<Snowflake, Promise<Queue>>();
 
 client.login(ENV.TOKEN);
 

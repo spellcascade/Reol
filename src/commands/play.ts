@@ -9,6 +9,10 @@ import { Command } from '../interfaces/Command';
 import { getTrack } from '../utils/getTrack';
 import { isPlaylist } from '../utils/helpers';
 import { saveSongRequest } from '../db/methods/saveSongRequest';
+import {
+  isTrackLoadHandled,
+  loadTrackResource,
+} from '../utils/track/loadTrackResource';
 
 export default {
   name: 'play',
@@ -67,22 +71,59 @@ export default {
         return;
       }
 
-      const newQueue = new Queue({
-        message,
-        textChannel: message.channel as TextChannel,
-        connection: joinVoiceChannel({
-          channelId: voiceChannel.id,
-          guildId,
-          adapterCreator: voiceChannel.guild
-            .voiceAdapterCreator as DiscordGatewayAdapterCreator,
-          selfDeaf: false,
-        }),
-      });
+      const pendingQueue = client.pendingQueues.get(guildId);
+      if (pendingQueue) {
+        try {
+          const queue = await pendingQueue;
+          queue.enqueue(track);
 
-      client.queues.set(guildId, newQueue);
-      newQueue.enqueue(track);
+          if (queue.tracks.length > 1) {
+            message.channel.send(`Added to queue: **${track.title}**`);
+          }
+
+          return;
+        } catch {}
+      }
+
+      const queuePromise = (async () => {
+        const resource = await loadTrackResource(
+          message.channel as TextChannel,
+          track,
+        );
+
+        const newQueue = new Queue({
+          initialResource: resource,
+          message,
+          textChannel: message.channel as TextChannel,
+          connection: joinVoiceChannel({
+            channelId: voiceChannel.id,
+            guildId,
+            adapterCreator: voiceChannel.guild
+              .voiceAdapterCreator as DiscordGatewayAdapterCreator,
+            selfDeaf: false,
+          }),
+        });
+
+        client.queues.set(guildId, newQueue);
+        newQueue.enqueue(track);
+        return newQueue;
+      })();
+
+      client.pendingQueues.set(guildId, queuePromise);
+
+      try {
+        await queuePromise;
+      } finally {
+        if (client.pendingQueues.get(guildId) === queuePromise) {
+          client.pendingQueues.delete(guildId);
+        }
+      }
     } catch (error: any) {
       console.error(error);
+
+      if (isTrackLoadHandled(error)) {
+        return;
+      }
 
       if (error instanceof Error) {
         return message.reply(error.message);

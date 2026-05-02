@@ -16,8 +16,7 @@ import { promisify } from 'node:util';
 import client from '..';
 import { ENV } from '../utils/ENV';
 import { Track } from './Track';
-import { createResource } from '../utils/track/createResource';
-import { YtDlpError } from '../external/ytdlp/ytdlp';
+import { loadTrackResource } from '../utils/track/loadTrackResource';
 
 const wait = promisify(setTimeout);
 
@@ -25,6 +24,7 @@ interface Options {
   message: Message;
   textChannel: TextChannel;
   connection: VoiceConnection;
+  initialResource?: AudioResource;
 }
 
 export class Queue {
@@ -34,7 +34,7 @@ export class Queue {
   public readonly textChannel: TextChannel;
   public readonly client = client;
 
-  public resource: AudioResource;
+  public resource: AudioResource | null = null;
   public tracks: Track[] = [];
   public volume = 100;
   public muted = false;
@@ -43,11 +43,13 @@ export class Queue {
   private queueLock = false;
   private readyLock = false;
   private stopped = false;
+  private initialResource: AudioResource | null = null;
 
   constructor(options: Options) {
     this.message = options.message;
     this.connection = options.connection;
     this.textChannel = options.textChannel;
+    this.initialResource = options.initialResource ?? null;
 
     this.player = createAudioPlayer({
       behaviors: { noSubscriber: NoSubscriberBehavior.Play },
@@ -102,7 +104,9 @@ export class Queue {
 
     try {
       const track = this.tracks[0];
-      const resource = await this.loadTrackResource(track);
+      const resource =
+        this.initialResource ?? (await loadTrackResource(this.textChannel, track));
+      this.initialResource = null;
 
       this.resource = resource;
       this.player.play(resource);
@@ -185,29 +189,6 @@ export class Queue {
       );
     } catch (err) {
       console.debug('Failed to update voice channel status:', err);
-    }
-  }
-
-  private async loadTrackResource(track: Track): Promise<AudioResource> {
-    const message = await this.textChannel.send('**Loading track...**');
-    let success = false;
-
-    try {
-      const resource = await createResource(track.url, track.durationSec);
-      success = true;
-      return resource;
-    } catch (err) {
-      const userMessage =
-        err instanceof YtDlpError
-          ? (err.userMessage ?? 'Cannot load track.')
-          : 'Cannot load track.';
-
-      await message.edit(`**${userMessage}**`);
-      throw err;
-    } finally {
-      if (success) {
-        message.delete().catch(() => {});
-      }
     }
   }
 

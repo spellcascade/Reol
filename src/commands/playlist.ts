@@ -45,6 +45,11 @@ export default {
       if (queue) {
         queue.enqueue(...tracks);
       } else {
+        const pendingQueue = client.pendingQueues.get(guildId);
+        if (pendingQueue) {
+          const queue = await pendingQueue;
+          queue.enqueue(...tracks);
+        } else {
         const newQueue = new Queue({
           message,
           textChannel: message.channel as TextChannel,
@@ -59,6 +64,7 @@ export default {
 
         client.queues.set(guildId, newQueue);
         newQueue.enqueue(...tracks);
+        }
       }
 
       const description = tracks
