@@ -11,6 +11,7 @@ const stat = promisify(fs.stat);
 const unlink = promisify(fs.unlink);
 const utimes = promisify(fs.utimes);
 
+const CACHE_TTL_MS = ENV.CACHE_TTL_DAYS * 24 * 60 * 60 * 1000;
 const MIN_FILE_SIZE_BYTES = 16 * 1024;
 
 interface GetStreamResult {
@@ -359,7 +360,7 @@ export class YtDlp {
           }
 
           const ageMs = now - fileStat.mtimeMs;
-          if (ageMs <= ENV.CACHE_TTL_MS) {
+          if (ageMs <= CACHE_TTL_MS) {
             return;
           }
 
