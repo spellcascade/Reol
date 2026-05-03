@@ -4,13 +4,13 @@ import { spawn } from 'child_process';
 import { promisify } from 'util';
 import type { ReadStream } from 'fs';
 import getYouTubeID from 'get-youtube-id';
+import { ENV } from '../../utils/ENV';
 
 const rename = promisify(fs.rename);
 const stat = promisify(fs.stat);
 const unlink = promisify(fs.unlink);
 const utimes = promisify(fs.utimes);
 
-const CACHE_TTL_MS = 7 * 24 * 60 * 60 * 1000;
 const MIN_FILE_SIZE_BYTES = 16 * 1024;
 
 interface GetStreamResult {
@@ -359,7 +359,7 @@ export class YtDlp {
           }
 
           const ageMs = now - fileStat.mtimeMs;
-          if (ageMs <= CACHE_TTL_MS) {
+          if (ageMs <= ENV.CACHE_TTL_MS) {
             return;
           }
 

@@ -12,8 +12,9 @@ export const ENV = {
   TEXT_CHANNEL_ID: process.env.TEXT_CHANNEL_ID,
   VOICE_CHANNEL_ID: process.env.VOICE_CHANNEL_ID as string,
   STAY_TIME_IN_SECONDS: Number(process.env.STAY_TIME_IN_SECONDS) || 60,
-  USE_DB: process.env.USE_DB || false,
+  USE_DB: process.env.USE_DB === 'true',
   DB_PATH: process.env.DB_PATH || 'db/db.sqlite',
   ADMINS: process.env.ADMINS?.split(',') || [],
   IS_PROD: process.env.NODE_ENV === 'production',
+  CACHE_TTL_MS: Number(process.env.CACHE_TTL_MS) || 7 * 24 * 60 * 60 * 1000, // 7 days
 };
