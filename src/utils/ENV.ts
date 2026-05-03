@@ -16,5 +16,5 @@ export const ENV = {
   DB_PATH: process.env.DB_PATH || 'db/db.sqlite',
   ADMINS: process.env.ADMINS?.split(',') || [],
   IS_PROD: process.env.NODE_ENV === 'production',
-  CACHE_TTL_DAYS: Number(process.env.CACHE_TTL_MS) || 7,
+  CACHE_TTL_DAYS: Number(process.env.CACHE_TTL_DAYS) || 7,
 };
