@@ -76,7 +76,6 @@ export class Queue {
     this.player.stop();
 
     this.resetVoiceStatusMessage();
-    this.sendTextMessage('Queue ended');
 
     if (this.waitTimeout !== null) return;
 
@@ -87,8 +86,6 @@ export class Queue {
         } catch {}
       }
       client.queues.delete(this.message.guild!.id);
-
-      this.sendTextMessage('Left voice channel');
     }, ENV.STAY_TIME_IN_SECONDS * 1000);
   }
 
@@ -105,7 +102,8 @@ export class Queue {
     try {
       const track = this.tracks[0];
       const resource =
-        this.initialResource ?? (await loadTrackResource(this.textChannel, track));
+        this.initialResource ??
+        (await loadTrackResource(this.textChannel, track));
       this.initialResource = null;
 
       this.resource = resource;
