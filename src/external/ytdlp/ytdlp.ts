@@ -250,7 +250,8 @@ export class YtDlp {
       probe.durationSec != null &&
       !this.isDurationValid(probe.durationSec, expectedDurationSec)
     ) {
-      const allowedShortfallSec = Math.min(3, expectedDurationSec * 0.05);
+      const allowedShortfallSec =
+        this.getAllowedDurationShortfallSec(expectedDurationSec);
       const shortfallSec = expectedDurationSec - probe.durationSec;
 
       throw new YtDlpError(
@@ -397,10 +398,18 @@ export class YtDlp {
     actualDurationSec: number,
     expectedDurationSec: number,
   ): boolean {
-    const allowedShortfallSec = Math.min(3, expectedDurationSec * 0.05);
+    const allowedShortfallSec =
+      this.getAllowedDurationShortfallSec(expectedDurationSec);
     const shortfallSec = expectedDurationSec - actualDurationSec;
 
     return shortfallSec <= allowedShortfallSec;
+  }
+
+  private getAllowedDurationShortfallSec(expectedDurationSec: number): number {
+    // Expected durations come from upstream metadata as whole seconds, while
+    // ffprobe returns fractional seconds. Allow up to 1 second of shortfall so
+    // short clips do not fail solely because of metadata rounding.
+    return Math.max(1, Math.min(3, expectedDurationSec * 0.05));
   }
 
   private createDownloadError(
