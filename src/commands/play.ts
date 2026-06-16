@@ -1,4 +1,4 @@
-import { TextChannel, VoiceBasedChannel } from 'discord.js';
+import { TextChannel } from 'discord.js';
 import { Queue } from '../interfaces/Queue';
 import {
   DiscordGatewayAdapterCreator,
@@ -13,6 +13,7 @@ import {
   isTrackLoadHandled,
   loadTrackResource,
 } from '../utils/track/loadTrackResource';
+import { getTargetVoiceChannel } from '../utils/getVoiceChannel';
 
 export default {
   name: 'play',
@@ -34,18 +35,15 @@ export default {
         return message.reply('Channel not found');
       }
 
-      const voiceChannel =
-        message.member?.voice.channel ||
-        (client.channels.cache.get(ENV.VOICE_CHANNEL_ID) as VoiceBasedChannel);
+      const guildId = message.guildId;
+      if (!guildId) throw new GuildNotFoundError();
 
+      const voiceChannel = getTargetVoiceChannel(message);
       if (!voiceChannel) {
         return message.reply(
           'Please join a voice channel or set a voice channel in the .env file.',
         );
       }
-
-      const guildId = message.guildId;
-      if (!guildId) throw new GuildNotFoundError();
 
       const query = args.join(' ');
       const track = await getTrack(query);

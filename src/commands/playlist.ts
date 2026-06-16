@@ -2,13 +2,13 @@ import {
   DiscordGatewayAdapterCreator,
   joinVoiceChannel,
 } from '@discordjs/voice';
-import { EmbedBuilder, TextChannel, VoiceBasedChannel } from 'discord.js';
+import { EmbedBuilder, TextChannel } from 'discord.js';
 import { Command } from '../interfaces/Command';
 import { Queue } from '../interfaces/Queue';
-import { ENV } from '../utils/ENV';
 import { getPlaylist } from '../utils/getPlaylist';
 import { DEFAULT_COLOR } from '../utils/helpers';
 import { truncateLongDescription } from '../utils/truncateDescription';
+import { getTargetVoiceChannel } from '../utils/getVoiceChannel';
 
 export default {
   name: 'playlist',
@@ -22,10 +22,7 @@ export default {
 
       const playlistLink = args[0];
 
-      const voiceChannel =
-        message.member?.voice.channel ||
-        (client.channels.cache.get(ENV.VOICE_CHANNEL_ID) as VoiceBasedChannel);
-
+      const voiceChannel = getTargetVoiceChannel(message);
       if (!voiceChannel) {
         return message.reply(
           'Please join a voice channel or set a voice channel in the .env file.',
@@ -50,20 +47,20 @@ export default {
           const queue = await pendingQueue;
           queue.enqueue(...tracks);
         } else {
-        const newQueue = new Queue({
-          message,
-          textChannel: message.channel as TextChannel,
-          connection: joinVoiceChannel({
-            channelId: voiceChannel.id,
-            guildId,
-            adapterCreator: voiceChannel.guild
-              .voiceAdapterCreator as DiscordGatewayAdapterCreator,
-            selfDeaf: false,
-          }),
-        });
+          const newQueue = new Queue({
+            message,
+            textChannel: message.channel as TextChannel,
+            connection: joinVoiceChannel({
+              channelId: voiceChannel.id,
+              guildId,
+              adapterCreator: voiceChannel.guild
+                .voiceAdapterCreator as DiscordGatewayAdapterCreator,
+              selfDeaf: false,
+            }),
+          });
 
-        client.queues.set(guildId, newQueue);
-        newQueue.enqueue(...tracks);
+          client.queues.set(guildId, newQueue);
+          newQueue.enqueue(...tracks);
         }
       }
 
