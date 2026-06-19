@@ -19,16 +19,7 @@ export default {
     for (const index of indices) {
       const title = queue.tracks[index]?.title || index.toString();
 
-      if (index === 0) {
-        queue.player.stop(true);
-        await message.channel.send(`Removed track **${title}**.`);
-
-        continue;
-      }
-
-      if (index >= 0 && index < queue.tracks.length) {
-        queue.tracks.splice(index, 1);
-
+      if (queue.removeTrack(index)) {
         await message.channel.send(`Removed track **${title}**.`);
       } else {
         return message.reply('Invalid track number(s).');

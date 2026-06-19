@@ -22,7 +22,7 @@ export default {
         return message.channel.send('Nothing is currently playing.');
       }
 
-      queue.player.stop(true);
+      queue.skipCurrent();
     } catch (error) {
       console.log(error);
 

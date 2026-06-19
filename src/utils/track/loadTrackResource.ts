@@ -2,7 +2,7 @@ import { AudioResource } from '@discordjs/voice';
 import { TextChannel } from 'discord.js';
 import { YtDlpError } from '../../external/ytdlp/ytdlp';
 import { Track } from '../../interfaces/Track';
-import { createResource } from './createResource';
+import { createResource, ensureResourceCached } from './createResource';
 
 interface HandledTrackLoadError {
   trackLoadHandled?: boolean;
@@ -33,6 +33,10 @@ export async function loadTrackResource(
       message.delete().catch(() => {});
     }
   }
+}
+
+export async function precacheTrackResource(track: Track): Promise<void> {
+  await ensureResourceCached(track.url, track.durationSec);
 }
 
 export function isTrackLoadHandled(error: unknown): boolean {

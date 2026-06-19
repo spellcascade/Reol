@@ -65,18 +65,48 @@ export class YtDlpError extends Error {
 export class YtDlp {
   private readonly cookiesPath?: string;
   private readonly cacheDir: string;
+  private readonly pendingDownloads = new Map<string, Promise<string>>();
 
   constructor(options: YtDlpOptions) {
     this.cookiesPath = options.cookiesPath;
     this.cacheDir = options.cacheDir;
   }
 
+  public async ensureCached(
+    url: string,
+    expectedDurationSec?: number,
+  ): Promise<string> {
+    await this.cleanupExpiredCache();
+
+    const videoId = this.getVideoId(url);
+    const cachedPath = await this.findCachedFile(videoId);
+    if (cachedPath) {
+      await this.touchFile(cachedPath);
+      await this.validateFile(cachedPath, expectedDurationSec);
+
+      return cachedPath;
+    }
+
+    const downloadPromise =
+      this.pendingDownloads.get(videoId) ?? this.startDownload(videoId, url);
+    const downloadedPath = await downloadPromise;
+
+    await this.touchFile(downloadedPath);
+    await this.validateFile(downloadedPath, expectedDurationSec);
+
+    return downloadedPath;
+  }
+
   public async getStream(
     url: string,
     expectedDurationSec?: number,
   ): Promise<GetStreamResult> {
-    await this.cleanupExpiredCache();
+    const cachedPath = await this.ensureCached(url, expectedDurationSec);
 
+    return this.createFileStreamResult(cachedPath);
+  }
+
+  private getVideoId(url: string): string {
     const videoId = getYouTubeID(url);
     if (!videoId) {
       throw new YtDlpError('Failed to extract YouTube ID', {
@@ -84,14 +114,22 @@ export class YtDlp {
       });
     }
 
-    const cachedPath = await this.findCachedFile(videoId);
-    if (cachedPath) {
-      await this.touchFile(cachedPath);
-      await this.validateFile(cachedPath, expectedDurationSec);
+    return videoId;
+  }
 
-      return this.createFileStreamResult(cachedPath);
-    }
+  private startDownload(videoId: string, url: string): Promise<string> {
+    const pendingDownload = this.downloadToCache(videoId, url).finally(() => {
+      if (this.pendingDownloads.get(videoId) === pendingDownload) {
+        this.pendingDownloads.delete(videoId);
+      }
+    });
 
+    this.pendingDownloads.set(videoId, pendingDownload);
+
+    return pendingDownload;
+  }
+
+  private async downloadToCache(videoId: string, url: string): Promise<string> {
     const tmpBase = path.join(
       this.cacheDir,
       `${videoId}.${Date.now()}.${process.pid}.tmp`,
@@ -108,7 +146,7 @@ export class YtDlp {
     }
 
     try {
-      await this.validateFile(downloadedPath, expectedDurationSec);
+      await this.validateFile(downloadedPath);
 
       const finalPath = path.join(
         this.cacheDir,
@@ -122,7 +160,7 @@ export class YtDlp {
 
       await rename(downloadedPath, finalPath);
 
-      return this.createFileStreamResult(finalPath);
+      return finalPath;
     } catch (error) {
       await this.safeUnlink(downloadedPath);
       throw error;

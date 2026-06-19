@@ -23,8 +23,7 @@ export default {
         return message.channel.send(`There is no track at position ${skipTo}.`);
       }
 
-      queue.tracks.splice(0, skipTo - 2);
-      queue.player.stop(true);
+      queue.skipTo(skipTo);
     } catch (error) {
       console.log(error);
 

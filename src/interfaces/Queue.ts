@@ -16,7 +16,10 @@ import { promisify } from 'node:util';
 import client from '..';
 import { ENV } from '../utils/ENV';
 import { Track } from './Track';
-import { loadTrackResource } from '../utils/track/loadTrackResource';
+import {
+  loadTrackResource,
+  precacheTrackResource,
+} from '../utils/track/loadTrackResource';
 
 const wait = promisify(setTimeout);
 
@@ -44,6 +47,8 @@ export class Queue {
   private readyLock = false;
   private stopped = false;
   private initialResource: AudioResource | null = null;
+  private precacheTargetUrl: string | null = null;
+  private activePrecachePromise: Promise<void> | null = null;
 
   constructor(options: Options) {
     this.message = options.message;
@@ -63,8 +68,39 @@ export class Queue {
     this.waitTimeout = null;
     this.stopped = false;
     this.tracks = this.tracks.concat(tracks);
+    this.refreshPrecache();
 
     this.processQueue();
+  }
+
+  public skipCurrent() {
+    this.refreshPrecache();
+    this.player.stop(true);
+  }
+
+  public skipTo(position: number) {
+    if (position <= 1) {
+      return;
+    }
+
+    this.tracks.splice(0, position - 2);
+    this.skipCurrent();
+  }
+
+  public removeTrack(index: number): boolean {
+    if (index < 0 || index >= this.tracks.length) {
+      return false;
+    }
+
+    if (index === 0) {
+      this.skipCurrent();
+      return true;
+    }
+
+    this.tracks.splice(index, 1);
+    this.refreshPrecache();
+
+    return true;
   }
 
   public stop() {
@@ -72,6 +108,8 @@ export class Queue {
 
     this.stopped = true;
     this.tracks = [];
+    this.precacheTargetUrl = null;
+    this.activePrecachePromise = null;
 
     this.player.stop();
 
@@ -129,6 +167,33 @@ export class Queue {
     }
   }
 
+  private refreshPrecache() {
+    const nextTrack = this.tracks[1];
+    if (!nextTrack) {
+      this.precacheTargetUrl = null;
+      this.activePrecachePromise = null;
+      return;
+    }
+
+    if (nextTrack.url === this.precacheTargetUrl) {
+      return;
+    }
+
+    this.precacheTargetUrl = nextTrack.url;
+
+    const precachePromise = precacheTrackResource(nextTrack)
+      .catch((error) => {
+        console.error('precacheTrackResource error', error);
+      })
+      .finally(() => {
+        if (this.activePrecachePromise === precachePromise) {
+          this.activePrecachePromise = null;
+        }
+      });
+
+    this.activePrecachePromise = precachePromise;
+  }
+
   private async sendPlayingMessage() {
     try {
       const track = this.tracks[0];
@@ -157,6 +222,8 @@ export class Queue {
       let j = 1 + Math.floor(Math.random() * i);
       [this.tracks[i], this.tracks[j]] = [this.tracks[j], this.tracks[i]];
     }
+
+    this.refreshPrecache();
   }
 
   async setPlayingVoiceStatus() {
@@ -282,6 +349,7 @@ export class Queue {
         ) {
           this.sendPlayingMessage();
           this.setPlayingVoiceStatus();
+          this.refreshPrecache();
         }
       },
     );
