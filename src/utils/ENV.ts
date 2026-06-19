@@ -17,4 +17,7 @@ export const ENV = {
   ADMINS: process.env.ADMINS?.split(',') || [],
   IS_PROD: process.env.NODE_ENV === 'production',
   CACHE_TTL_DAYS: Number(process.env.CACHE_TTL_DAYS) || 7,
+  TIDAL_CLIENT_ID: process.env.TIDAL_CLIENT_ID,
+  TIDAL_CLIENT_SECRET: process.env.TIDAL_CLIENT_SECRET,
+  TIDAL_COUNTRY_CODE: process.env.TIDAL_COUNTRY_CODE || 'US',
 };
