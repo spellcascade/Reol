@@ -10,4 +10,5 @@ export interface Track {
 interface TrackMetadata {
   artist?: string;
   title?: string;
+  isrc?: string;
 }

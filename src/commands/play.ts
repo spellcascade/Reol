@@ -8,7 +8,7 @@ import { ENV } from '../utils/ENV';
 import { Command } from '../interfaces/Command';
 import { getTrack } from '../utils/getTrack';
 import { isPlaylist } from '../utils/helpers';
-import { saveSongRequest } from '../db/methods/saveSongRequest';
+import { saveSongRequestForTrack } from '../db/methods/saveSongRequestForTrack';
 import {
   isTrackLoadHandled,
   loadTrackResource,
@@ -50,11 +50,12 @@ export default {
       track.requestedBy = message.author.displayName;
 
       if (ENV.USE_DB) {
-        await saveSongRequest({
-          url: track.url,
-          title: track.title,
+        void saveSongRequestForTrack({
+          track,
           authorId: message.author.id,
           guildId,
+        }).catch((error) => {
+          console.error('Failed to save song request', error);
         });
       }
 

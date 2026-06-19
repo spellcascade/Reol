@@ -28,6 +28,7 @@ export async function getTidalTrack(url: string): Promise<Track> {
           metadata: {
             artist: tidalTrack.artists,
             title: tidalTrack.title,
+            isrc: tidalTrack.isrc,
           },
         };
       } catch (error) {
