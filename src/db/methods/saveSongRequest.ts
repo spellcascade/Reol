@@ -4,6 +4,7 @@ import { SongRequest } from '../entities/SongRequest';
 export async function saveSongRequest({
   authorId,
   guildId,
+  normalizedTitle,
   trackId,
   url,
   title,
@@ -12,6 +13,7 @@ export async function saveSongRequest({
   title: string;
   authorId: string;
   guildId: string;
+  normalizedTitle: string;
   trackId?: number | null;
 }) {
   const repo = AppDataSource.getRepository(SongRequest);
@@ -22,5 +24,6 @@ export async function saveSongRequest({
     requestedBy: authorId,
     guildId,
     trackId: trackId ?? null,
+    normalizedTitle,
   });
 }

@@ -19,8 +19,11 @@ export class SongRequest {
   @Column()
   guildId: string;
 
-  @Column({ type: 'text', nullable: true })
+  @Column({ type: 'integer', nullable: true })
   trackId: number | null;
+
+  @Column({ default: '' })
+  normalizedTitle: string;
 
   @Column()
   requestedBy: string;

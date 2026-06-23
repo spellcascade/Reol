@@ -18,27 +18,50 @@ export default {
       const guildId = message.guildId;
 
       const repo = AppDataSource.getRepository(SongRequest);
-      const requests: Array<{
-        artist: string;
-        name: string;
+      const rows: Array<{
         url: string;
-        count: number;
+        normalizedTitle: string;
       }> = await repo
         .createQueryBuilder('song_request')
         .select([
-          'song_request.artist AS artist',
-          'song_request.name AS name',
-          'url',
-          'COUNT(*) AS count',
+          'song_request.url AS url',
+          'song_request.normalizedTitle AS normalizedTitle',
         ])
         .where('song_request.guildId = :guildId', { guildId })
-        .andWhere("song_request.artist != ''")
-        .andWhere("song_request.name != ''")
-        .groupBy('song_request.artist')
-        .addGroupBy('song_request.name')
-        .orderBy('COUNT(*)', 'DESC')
-        .take(count)
+        .orderBy('song_request.requestedAt', 'DESC')
         .getRawMany();
+
+      const groupedRequests = new Map<
+        string,
+        { label: string; url: string; count: number }
+      >();
+
+      for (const row of rows) {
+        const label = row.normalizedTitle.trim();
+        const key = label.toLocaleLowerCase();
+        const existing = groupedRequests.get(key);
+
+        if (existing) {
+          existing.count += 1;
+          continue;
+        }
+
+        groupedRequests.set(key, {
+          label,
+          url: row.url,
+          count: 1,
+        });
+      }
+
+      const requests = [...groupedRequests.values()]
+        .sort((left, right) => {
+          if (right.count !== left.count) {
+            return right.count - left.count;
+          }
+
+          return left.label.localeCompare(right.label);
+        })
+        .slice(0, count);
 
       if (!requests.length) {
         return message.reply('No songs requested yet');
@@ -51,9 +74,9 @@ export default {
 
       for (let i = 0; i < requests.length; i++) {
         const request = requests[i];
-        const entry = `${i + 1}. [${request.artist} - ${request.name}](${
-          request.url
-        }) - ${request.count} plays`;
+        const entry = `${i + 1}. [${request.label}](${request.url}) - ${
+          request.count
+        } plays`;
 
         const nextTotal = totalLength + entry.length;
         const remaining = requests.length - (i + 1);
