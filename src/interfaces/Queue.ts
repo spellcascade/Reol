@@ -113,8 +113,6 @@ export class Queue {
 
     this.player.stop();
 
-    this.resetVoiceStatusMessage();
-
     if (this.waitTimeout !== null) return;
 
     this.waitTimeout = setTimeout(() => {
@@ -226,37 +224,6 @@ export class Queue {
     this.refreshPrecache();
   }
 
-  async setPlayingVoiceStatus() {
-    const track = this.tracks[0];
-    if (!track) return;
-
-    const artist = track.metadata?.artist;
-    const title = track.metadata?.title ?? track.title;
-    const status = escapeMarkdown(
-      (artist ? `${artist} - ${title}` : title).slice(0, 128),
-    );
-
-    try {
-      await this.client.rest.put(
-        `/channels/${this.connection.joinConfig.channelId}/voice-status`,
-        { body: { status } },
-      );
-    } catch (err) {
-      console.debug('Failed to update voice channel status:', err);
-    }
-  }
-
-  async resetVoiceStatusMessage() {
-    try {
-      await this.client.rest.put(
-        `/channels/${this.connection.joinConfig.channelId}/voice-status`,
-        { body: { status: '' } },
-      );
-    } catch (err) {
-      console.debug('Failed to update voice channel status:', err);
-    }
-  }
-
   private setupListeners() {
     const networkStateChangeHandler = (_: any, newNetworkState: any) => {
       const newUdp = Reflect.get(newNetworkState, 'udp');
@@ -348,7 +315,6 @@ export class Queue {
           oldState.status !== AudioPlayerStatus.Playing
         ) {
           this.sendPlayingMessage();
-          this.setPlayingVoiceStatus();
           this.refreshPrecache();
         }
       },
@@ -361,10 +327,4 @@ export class Queue {
       void this.processQueue();
     });
   }
-}
-
-function escapeMarkdown(text: string) {
-  var unescaped = text.replace(/\\(\*|_|`|~|\\)/g, '$1');
-  var escaped = unescaped.replace(/(\*|_|`|~|\\)/g, '\\$1');
-  return escaped;
 }

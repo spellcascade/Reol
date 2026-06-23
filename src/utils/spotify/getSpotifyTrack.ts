@@ -23,13 +23,7 @@ export async function getSpotifyTrack(url: string): Promise<Track> {
           spotifyTrack?.durationSec,
         );
 
-        return {
-          ...track,
-          metadata: {
-            artist: spotifyTrack.artists,
-            title: spotifyTrack.name,
-          },
-        };
+        return track;
       } catch (error) {
         throw error;
       }

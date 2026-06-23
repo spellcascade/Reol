@@ -4,11 +4,4 @@ export interface Track {
   durationFormatted: string;
   durationSec: number;
   requestedBy?: string;
-  metadata?: TrackMetadata;
-}
-
-interface TrackMetadata {
-  artist?: string;
-  title?: string;
-  isrc?: string;
 }

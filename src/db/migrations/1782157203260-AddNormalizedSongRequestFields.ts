@@ -1,14 +1,21 @@
 import { MigrationInterface, QueryRunner } from 'typeorm';
 
-export class AddNormalizedSongRequestFields1774000000000
-  implements MigrationInterface
-{
-  name = 'AddNormalizedSongRequestFields1774000000000';
+export class AddNormalizedSongRequestFields1782157203260 implements MigrationInterface {
+  name = 'AddNormalizedSongRequestFields1782157203260';
 
   public async up(queryRunner: QueryRunner): Promise<void> {
-    await queryRunner.query(
-      `ALTER TABLE "song_request" ADD COLUMN "normalizedTitle" TEXT NOT NULL DEFAULT ''`,
+    const songRequestColumns: Array<{ name: string }> = await queryRunner.query(
+      `PRAGMA table_info("song_request")`,
     );
+    const hasNormalizedTitle = songRequestColumns.some(
+      (column) => column.name === 'normalizedTitle',
+    );
+
+    if (!hasNormalizedTitle) {
+      await queryRunner.query(
+        `ALTER TABLE "song_request" ADD COLUMN "normalizedTitle" TEXT NOT NULL DEFAULT ''`,
+      );
+    }
 
     const rows: Array<{ id: number; title: string }> = await queryRunner.query(
       `SELECT "id", "title" FROM "song_request"`,
@@ -28,6 +35,17 @@ export class AddNormalizedSongRequestFields1774000000000
   }
 
   public async down(queryRunner: QueryRunner): Promise<void> {
+    const songRequestColumns: Array<{ name: string }> = await queryRunner.query(
+      `PRAGMA table_info("song_request")`,
+    );
+    const hasNormalizedTitle = songRequestColumns.some(
+      (column) => column.name === 'normalizedTitle',
+    );
+
+    if (!hasNormalizedTitle) {
+      return;
+    }
+
     await queryRunner.query(`
       CREATE TABLE "song_request_old" (
         "id" integer PRIMARY KEY AUTOINCREMENT NOT NULL,
@@ -68,7 +86,9 @@ function normalizeYoutubeTitleForMigration(title: string): string {
 
   const pipeIndex = prepared.indexOf('|');
   const titleWithoutPipe =
-    pipeIndex === -1 ? prepared : prepared.slice(0, pipeIndex).trim() || prepared;
+    pipeIndex === -1
+      ? prepared
+      : prepared.slice(0, pipeIndex).trim() || prepared;
   const split = splitArtistAndName(titleWithoutPipe);
 
   if (split) {

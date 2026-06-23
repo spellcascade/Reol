@@ -17,7 +17,6 @@ export interface TidalTrackDetails {
   title: string;
   durationSec: number;
   artists: string;
-  isrc: string;
 }
 
 export async function getTrackDetails(
@@ -41,10 +40,6 @@ export async function getTrackDetails(
   const title = getTrackTitle(track.attributes);
   const durationSec = parseIsoDurationSeconds(track.attributes?.duration);
   const artists = getArtists(response.data?.included);
-  const isrc =
-    typeof response.data.data?.attributes?.isrc == 'string'
-      ? response.data.data?.attributes?.isrc
-      : '';
 
   if (!title || durationSec == null || artists === '') {
     return null;
@@ -55,7 +50,6 @@ export async function getTrackDetails(
     title,
     durationSec,
     artists,
-    isrc,
   };
 }
 
