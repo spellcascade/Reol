@@ -23,7 +23,9 @@ export default {
         return message.channel.send(`There is no track at position ${skipTo}.`);
       }
 
+      const targetTitle = queue.tracks[skipTo - 1]?.title ?? `track ${skipTo}`;
       queue.skipTo(skipTo);
+      message.channel.send(`Skipping to **${targetTitle}**.`);
     } catch (error) {
       console.log(error);
 

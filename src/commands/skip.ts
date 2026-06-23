@@ -22,7 +22,9 @@ export default {
         return message.channel.send('Nothing is currently playing.');
       }
 
+      const currentTitle = queue.tracks[0]?.title ?? 'current track';
       queue.skipCurrent();
+      message.channel.send(`Skipped **${currentTitle}**.`);
     } catch (error) {
       console.log(error);
 
