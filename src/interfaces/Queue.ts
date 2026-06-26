@@ -113,6 +113,8 @@ export class Queue {
 
     this.player.stop();
 
+    this.resetVoiceStatusMessage();
+
     if (this.waitTimeout !== null) return;
 
     this.waitTimeout = setTimeout(() => {
@@ -347,6 +349,7 @@ export class Queue {
           oldState.status !== AudioPlayerStatus.Playing
         ) {
           this.sendPlayingMessage();
+          this.setPlayingVoiceStatus();
           this.refreshPrecache();
         }
       },
