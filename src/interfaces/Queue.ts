@@ -216,6 +216,36 @@ export class Queue {
     }
   }
 
+  async setPlayingVoiceStatus() {
+    const track = this.tracks[0];
+    if (!track) return;
+
+    const title = track.requestedBy
+      ? `[${track.requestedBy}] ${track.title}`
+      : track.title;
+    const status = escapeMarkdown(title.slice(0, 128));
+
+    try {
+      await this.client.rest.put(
+        `/channels/${this.connection.joinConfig.channelId}/voice-status`,
+        { body: { status } },
+      );
+    } catch (err) {
+      console.debug('Failed to update voice channel status:', err);
+    }
+  }
+
+  async resetVoiceStatusMessage() {
+    try {
+      await this.client.rest.put(
+        `/channels/${this.connection.joinConfig.channelId}/voice-status`,
+        { body: { status: '' } },
+      );
+    } catch (err) {
+      console.debug('Failed to update voice channel status:', err);
+    }
+  }
+
   public shuffle() {
     for (let i = this.tracks.length - 1; i > 1; i--) {
       let j = 1 + Math.floor(Math.random() * i);
@@ -329,4 +359,10 @@ export class Queue {
       void this.processQueue();
     });
   }
+}
+
+function escapeMarkdown(text: string) {
+  var unescaped = text.replace(/\\(\*|_|`|~|\\)/g, '$1');
+  var escaped = unescaped.replace(/(\*|_|`|~|\\)/g, '\\$1');
+  return escaped;
 }

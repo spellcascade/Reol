@@ -40,9 +40,7 @@ export default {
 
       const voiceChannel = getTargetVoiceChannel(message);
       if (!voiceChannel) {
-        return message.reply(
-          'Please join a voice channel or set a voice channel in the .env file.',
-        );
+        return message.reply('Please join a voice channel.');
       }
 
       const query = args.join(' ');
