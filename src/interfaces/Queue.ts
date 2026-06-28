@@ -118,7 +118,6 @@ export class Queue {
     if (this.waitTimeout !== null) return;
 
     this.waitTimeout = setTimeout(() => {
-      void this.sendTextMessage('Left voice channel due to inactivity.');
       if (this.connection.state.status !== VoiceConnectionStatus.Destroyed) {
         try {
           this.connection.destroy();
@@ -335,7 +334,6 @@ export class Queue {
           this.tracks.shift();
 
           if (this.tracks.length === 0) {
-            void this.sendTextMessage('Queue ended.');
             return this.stop();
           }
 
