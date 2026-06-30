@@ -49,7 +49,8 @@ export default {
             name: `${idx + PAGE_SIZE * (page - 1) + 1}. ${track.title}`,
             value:
               `Duration: ${track.durationFormatted}` +
-              (track.requestedBy ? ` by ${track.requestedBy}` : ''),
+              (track.requestedBy ? ` by ${track.requestedBy}` : '') +
+              ` / [Link](${track.url})`,
           });
         });
 
