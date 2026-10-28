@@ -1,19 +1,76 @@
-const BRACKETED_SEGMENT_REGEX = /(\[[^[\]]*\]|\([^()]*\)|\{[^{}]*\})/g;
+const BRACKETED_SEGMENT_REGEX =
+  /(\[[^[\]]*\]|\([^()]*\)|\{[^{}]*\}|【[^【】]*】|〖[^〖〗]*〗|「[^「」]*」|『[^『』]*』)/g;
 const INLINE_NOISE_REGEXES = [
-  /\bofficial\s+(?:music\s+video|video|audio|lyric\s+video|visualizer)\b/gi,
-  /\blyric\s+video\b/gi,
+  /\b(?:hd|hq|uhd|4k|8k|1080p|720p|2160p|1440p|480p|360p)\b/gi,
+  /\bofficial\s+(?:(?:music|lyric)\s+)?(?:video|audio|visuali[sz]er|m\s*\/?\s*v|pv)\b/gi,
+  /\b(?:music|lyric)\s+video\b/gi,
   /\blyrics?(?:\s+on\s+screen)?\b/gi,
-  /\bvisualizer\b/gi,
+  /\bvisuali[sz]er\b/gi,
   /\bclip\s+(?:officiel|oficial)\b/gi,
   /\bvideo\s+lyric\s+oficial\b/gi,
-  /\b(?:hd|hq|4k|1080p|720p)\b/gi,
   /\bwith\s+lyrics?\b/gi,
+  /\bm\s*\/\s*v\b/gi,
+  /\bmv\b/gi,
+  /\bpv\b/gi,
+  /\bremaster(?:ed)?\b/gi,
 ];
 const FEATURED_ARTIST_REGEX = /\s+(?:feat\.?|ft\.?|featuring)\s+.+$/i;
+const FEATURED_ARTIST_DESCRIPTOR_REGEX =
+  /^(?:feat\.?|ft\.?|featuring)\s+.+$/i;
 const PROTECTED_VARIANT_REGEX =
   /\b(remix|cover|parody|gachi|right\s+version|ai\s+(?:cover|version)|sped\s*up|slowed|live|acoustic|instrumental|mashup|phonk|nightcore|extended)\b/i;
-const PURE_NOISE_REGEX =
-  /^(?:official(?:\s+(?:music\s+video|video|audio|lyric\s+video|visualizer))?|lyric\s+video|lyrics?(?:\s+on\s+screen)?|visualizer|clip\s+(?:officiel|oficial)|video\s+lyric\s+oficial|hd|hq|4k|1080p|720p|with\s+lyrics?|\s|[-,:;!'"`~|.])+$/i;
+const NOISE_DESCRIPTOR_TOKENS = new Set([
+  'official',
+  'video',
+  'music',
+  'audio',
+  'lyric',
+  'lyrics',
+  'visualizer',
+  'visualiser',
+  'clip',
+  'officiel',
+  'oficial',
+  'hd',
+  'hq',
+  'uhd',
+  '4k',
+  '8k',
+  '1080p',
+  '720p',
+  '2160p',
+  '1440p',
+  '480p',
+  '360p',
+  'mv',
+  'm',
+  'v',
+  'pv',
+  'with',
+  'on',
+  'screen',
+  'remastered',
+  'remaster',
+  'explicit',
+  'clean',
+  'karaoke',
+  'full',
+  'high',
+  'quality',
+  'color',
+  'colour',
+  'coded',
+  'eng',
+  'english',
+  'sub',
+  'subs',
+  'espanol',
+  'romanized',
+  'romanization',
+  'tiktok',
+]);
+const YEAR_TOKEN_REGEX = /^(?:19|20)\d{2}$/;
+const DESCRIPTOR_TOKEN_SPLIT_REGEX = /[^\p{L}\p{N}]+/gu;
 
 export function normalizeYoutubeTitle(title: string): string {
   const prepared = prepareTitle(title);
@@ -79,7 +136,11 @@ function cleanWholeTitle(part: string): string {
 }
 
 function cleanArtistPart(part: string): string {
-  return finalizeSpacing(canonicalizeBracketSegments(part, true));
+  const withoutFeatured = canonicalizeBracketSegments(part, true).replace(
+    FEATURED_ARTIST_REGEX,
+    '',
+  );
+  return finalizeSpacing(withoutFeatured);
 }
 
 function cleanSongPart(part: string): string {
@@ -104,7 +165,10 @@ function canonicalizeBracketSegments(
       return ' ';
     }
 
-    if (shouldDropDescriptor(normalizedContent)) {
+    if (
+      shouldDropDescriptor(normalizedContent) ||
+      FEATURED_ARTIST_DESCRIPTOR_REGEX.test(normalizedContent)
+    ) {
       return ' ';
     }
 
@@ -131,7 +195,24 @@ function shouldDropDescriptor(content: string): boolean {
     return false;
   }
 
-  return PURE_NOISE_REGEX.test(content);
+  return isPureNoiseDescriptor(content);
+}
+
+function isPureNoiseDescriptor(content: string): boolean {
+  const tokens = content
+    .normalize('NFKC')
+    .toLowerCase()
+    .split(DESCRIPTOR_TOKEN_SPLIT_REGEX)
+    .filter(Boolean);
+
+  if (!tokens.length) {
+    return true;
+  }
+
+  return tokens.every(
+    (token) =>
+      NOISE_DESCRIPTOR_TOKENS.has(token) || YEAR_TOKEN_REGEX.test(token),
+  );
 }
 
 function removeInlineNoise(part: string): string {
@@ -146,6 +227,8 @@ function removeInlineNoise(part: string): string {
 function finalizeSpacing(part: string): string {
   return part
     .replace(/[♂♀]/gu, ' ')
+    .replace(/\p{Extended_Pictographic}|\p{Emoji_Presentation}/gu, ' ')
+    .replace(/[\u200d\ufe0f]/g, ' ')
     .replace(/\s+/g, ' ')
     .replace(/\(\s*\)/g, ' ')
     .replace(/\s+([)\]])/g, '$1')

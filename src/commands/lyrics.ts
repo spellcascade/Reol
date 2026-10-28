@@ -24,9 +24,9 @@ export default {
       const guildId = message.guildId;
       if (!guildId) throw new GuildNotFoundError();
 
-      const query = args?.join(' ');
+      const query = args?.join(' ')?.trim();
       if (query) {
-        const lyrics = await getLyrics({ query });
+        const lyrics = await getLyrics({ query: cleanYoutubeTitle(query) });
         const lyric = lyrics[0];
         if (!lyric) {
           return message.channel.send('No lyrics found.');

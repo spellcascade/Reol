@@ -23,7 +23,7 @@ export async function getLyrics({
       }),
     },
     headers: {
-      'User-Agent': 'Reol discord bot (https://github.com/AitakattaSora/Reol)',
+      'User-Agent': 'Reol discord bot (https://github.com/spellcascade/Reol)',
     },
   });
 
