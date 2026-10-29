@@ -36,13 +36,6 @@ export async function createResource(
   }
 }
 
-export async function ensureResourceCached(
-  url: string,
-  expectedDurationSec?: number,
-) {
-  await ytDlp.ensureCached(url, expectedDurationSec);
-}
-
 export function getYtDlpUserMessage(err: unknown): string {
   if (!(err instanceof YtDlpError)) {
     return 'Cannot load track.';

@@ -16,10 +16,8 @@ import { promisify } from 'node:util';
 import client from '..';
 import { ENV } from '../utils/ENV';
 import { Track } from './Track';
-import {
-  loadTrackResource,
-  precacheTrackResource,
-} from '../utils/track/loadTrackResource';
+import { loadTrackResource } from '../utils/track/loadTrackResource';
+import { createResource } from '../utils/track/createResource';
 
 const wait = promisify(setTimeout);
 
@@ -47,8 +45,9 @@ export class Queue {
   private readyLock = false;
   private stopped = false;
   private initialResource: AudioResource | null = null;
-  private precacheTargetUrl: string | null = null;
-  private activePrecachePromise: Promise<void> | null = null;
+  private prefetchTargetTrack: Track | null = null;
+  private prefetchedResource: AudioResource | null = null;
+  private activePrefetchPromise: Promise<AudioResource | null> | null = null;
 
   constructor(options: Options) {
     this.message = options.message;
@@ -68,13 +67,13 @@ export class Queue {
     this.waitTimeout = null;
     this.stopped = false;
     this.tracks = this.tracks.concat(tracks);
-    this.refreshPrecache();
+    this.refreshPrefetch();
 
     this.processQueue();
   }
 
   public skipCurrent() {
-    this.refreshPrecache();
+    this.refreshPrefetch();
     this.player.stop(true);
   }
 
@@ -98,7 +97,7 @@ export class Queue {
     }
 
     this.tracks.splice(index, 1);
-    this.refreshPrecache();
+    this.refreshPrefetch();
 
     return true;
   }
@@ -108,8 +107,8 @@ export class Queue {
 
     this.stopped = true;
     this.tracks = [];
-    this.precacheTargetUrl = null;
-    this.activePrecachePromise = null;
+    this.destroyPrefetchedResource();
+    this.activePrefetchPromise = null;
 
     this.player.stop();
 
@@ -135,18 +134,50 @@ export class Queue {
       return;
     }
 
+    const track = this.tracks[0];
+
+    const readyResource =
+      this.initialResource ?? this.takePrefetchedResource(track);
+
+    if (readyResource) {
+      this.initialResource = null;
+      this.queueLock = true;
+
+      // Start on the next tick rather than synchronously to fix playback speed bug
+      setImmediate(() => {
+        const canStart =
+          this.player.state.status === AudioPlayerStatus.Idle &&
+          this.tracks[0] === track;
+
+        if (!canStart) {
+          readyResource.playStream.destroy();
+          this.queueLock = false;
+          void this.processQueue();
+          return;
+        }
+
+        const started = this.tryStartResource(readyResource);
+        this.queueLock = false;
+
+        if (!started) {
+          void this.processQueue();
+        }
+      });
+
+      return;
+    }
+
     this.queueLock = true;
 
     try {
-      const track = this.tracks[0];
-      const resource =
-        this.initialResource ??
-        (await loadTrackResource(this.textChannel, track));
-      this.initialResource = null;
+      const resource = await loadTrackResource(this.textChannel, track);
 
-      this.resource = resource;
-      this.player.play(resource);
-      resource.volume?.setVolumeLogarithmic(this.volume / 100);
+      if (this.tracks[0] !== track) {
+        resource.playStream.destroy();
+        return;
+      }
+
+      this.tryStartResource(resource);
     } catch (error) {
       console.error('createResource error', error);
       this.tracks.shift();
@@ -167,31 +198,95 @@ export class Queue {
     }
   }
 
-  private refreshPrecache() {
-    const nextTrack = this.tracks[1];
+  private tryStartResource(resource: AudioResource): boolean {
+    try {
+      this.resource = resource;
+      this.player.play(resource);
+      resource.volume?.setVolumeLogarithmic(this.volume / 100);
+      this.refreshPrefetch();
+      return true;
+    } catch (error) {
+      console.error('Failed to start resource', error);
+      resource.playStream.destroy();
+      return false;
+    }
+  }
+
+  private takePrefetchedResource(track: Track): AudioResource | null {
+    if (this.prefetchTargetTrack !== track || !this.prefetchedResource) {
+      return null;
+    }
+
+    const resource = this.prefetchedResource;
+    this.prefetchedResource = null;
+    this.prefetchTargetTrack = null;
+    this.activePrefetchPromise = null;
+
+    if (resource.ended) {
+      resource.playStream.destroy();
+      return null;
+    }
+
+    return resource;
+  }
+
+  private destroyPrefetchedResource() {
+    this.prefetchTargetTrack = null;
+
+    const resource = this.prefetchedResource;
+    this.prefetchedResource = null;
+
+    if (resource) {
+      resource.playStream.destroy();
+    }
+  }
+
+  private refreshPrefetch() {
+    const nextTrack = this.tracks[1] ?? null;
+
+    if (nextTrack === this.prefetchTargetTrack) {
+      return;
+    }
+
+    this.destroyPrefetchedResource();
+    this.prefetchTargetTrack = nextTrack;
+    this.activePrefetchPromise = null;
+
     if (!nextTrack) {
-      this.precacheTargetUrl = null;
-      this.activePrecachePromise = null;
       return;
     }
 
-    if (nextTrack.url === this.precacheTargetUrl) {
-      return;
-    }
-
-    this.precacheTargetUrl = nextTrack.url;
-
-    const precachePromise = precacheTrackResource(nextTrack)
-      .catch((error) => {
-        console.error('precacheTrackResource error', error);
-      })
-      .finally(() => {
-        if (this.activePrecachePromise === precachePromise) {
-          this.activePrecachePromise = null;
+    const prefetchPromise = this.preparePrefetchedResource(nextTrack).finally(
+      () => {
+        if (this.activePrefetchPromise === prefetchPromise) {
+          this.activePrefetchPromise = null;
         }
-      });
+      },
+    );
 
-    this.activePrecachePromise = precachePromise;
+    this.activePrefetchPromise = prefetchPromise;
+  }
+
+  private async preparePrefetchedResource(
+    track: Track,
+  ): Promise<AudioResource | null> {
+    try {
+      const resource = await createResource(track.url, track.durationSec);
+
+      // The queue may have changed while the resource was being prepared
+      // (track removed, shuffled, skipped, or already started through the
+      // slow path). In that case it is safe to throw the resource away.
+      if (this.prefetchTargetTrack !== track || this.tracks[1] !== track) {
+        resource.playStream.destroy();
+        return null;
+      }
+
+      this.prefetchedResource = resource;
+      return resource;
+    } catch (error) {
+      console.error('prefetch resource error', error);
+      return null;
+    }
   }
 
   private async sendPlayingMessage() {
@@ -253,7 +348,7 @@ export class Queue {
       [this.tracks[i], this.tracks[j]] = [this.tracks[j], this.tracks[i]];
     }
 
-    this.refreshPrecache();
+    this.refreshPrefetch();
   }
 
   private setupListeners() {
@@ -348,16 +443,13 @@ export class Queue {
         ) {
           this.sendPlayingMessage();
           this.setPlayingVoiceStatus();
-          this.refreshPrecache();
+          this.refreshPrefetch();
         }
       },
     );
 
     this.player.on('error', (error) => {
       console.error(error);
-
-      this.tracks.shift();
-      void this.processQueue();
     });
   }
 }

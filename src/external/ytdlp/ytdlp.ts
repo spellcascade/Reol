@@ -172,8 +172,6 @@ export class YtDlp {
       const args = [
         '-4',
         '-v',
-        '--extractor-args',
-        'youtube:player_client=web',
         '--no-cache-dir',
         '--ignore-config',
         '--no-playlist',
@@ -356,7 +354,12 @@ export class YtDlp {
 
   private async findCachedFile(videoId: string): Promise<string | null> {
     const files = await fs.promises.readdir(this.cacheDir);
-    const match = files.find((file) => file.startsWith(`${videoId}.`));
+    const match = files.find(
+      (file) =>
+        file.startsWith(`${videoId}.`) &&
+        !file.endsWith('.part') &&
+        !file.includes('.tmp.'),
+    );
 
     return match ? path.join(this.cacheDir, match) : null;
   }

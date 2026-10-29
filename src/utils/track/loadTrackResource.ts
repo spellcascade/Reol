@@ -2,7 +2,7 @@ import { AudioResource } from '@discordjs/voice';
 import { TextChannel } from 'discord.js';
 import { YtDlpError } from '../../external/ytdlp/ytdlp';
 import { Track } from '../../interfaces/Track';
-import { createResource, ensureResourceCached } from './createResource';
+import { createResource } from './createResource';
 
 interface HandledTrackLoadError {
   trackLoadHandled?: boolean;
@@ -12,12 +12,20 @@ export async function loadTrackResource(
   textChannel: TextChannel,
   track: Track,
 ): Promise<AudioResource> {
-  const message = await textChannel.send('**Loading track...**');
-  let success = false;
+  // Do not block resource creation on the Discord REST call. The loading
+  // message is only informational, and the extra round-trip widens the gap
+  // between tracks, which is what makes Discord re-clock the audio.
+  const messagePromise = textChannel
+    .send('**Loading track...**')
+    .catch(() => null);
 
   try {
     const resource = await createResource(track.url, track.durationSec);
-    success = true;
+
+    void messagePromise.then((message) => {
+      message?.delete().catch(() => {});
+    });
+
     return resource;
   } catch (error) {
     const userMessage =
@@ -25,18 +33,12 @@ export async function loadTrackResource(
         ? (error.userMessage ?? 'Cannot load track.')
         : 'Cannot load track.';
 
-    await message.edit(`**${userMessage}**`);
+    const message = await messagePromise;
+    await message?.edit(`**${userMessage}**`);
+
     markTrackLoadHandled(error);
     throw error;
-  } finally {
-    if (success) {
-      message.delete().catch(() => {});
-    }
   }
-}
-
-export async function precacheTrackResource(track: Track): Promise<void> {
-  await ensureResourceCached(track.url, track.durationSec);
 }
 
 export function isTrackLoadHandled(error: unknown): boolean {
