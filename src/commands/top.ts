@@ -14,7 +14,7 @@ export default {
         return message.reply('Song requests recording is not enabled');
       }
 
-      const count = Number(args?.[0]) || 20;
+      const requestedPage = args?.[0] ? Number(args[0]) : 1;
       const guildId = message.guildId;
 
       const repo = AppDataSource.getRepository(SongRequest);
@@ -53,52 +53,67 @@ export default {
         });
       }
 
-      const requests = [...groupedRequests.values()]
-        .sort((left, right) => {
-          if (right.count !== left.count) {
-            return right.count - left.count;
-          }
+      const requests = [...groupedRequests.values()].sort((left, right) => {
+        if (right.count !== left.count) {
+          return right.count - left.count;
+        }
 
-          return left.label.localeCompare(right.label);
-        })
-        .slice(0, count);
+        return left.label.localeCompare(right.label);
+      });
 
       if (!requests.length) {
         return message.reply('No songs requested yet');
       }
 
-      const MAX_LENGTH = 4096;
-      let totalLength = 0;
+      if (!Number.isInteger(requestedPage) || requestedPage < 1) {
+        return message.reply('Page must be a positive number');
+      }
+
+      const MAX_LENGTH = 4000;
+      const pages: string[] = [];
       let description = '';
-      let shownCount = 0;
 
       for (let i = 0; i < requests.length; i++) {
         const request = requests[i];
         const entry = `${i + 1}. [${request.label}](${request.url}) - ${
           request.count
-        } plays`;
+        } plays\n`;
 
-        const nextTotal = totalLength + entry.length;
-        const remaining = requests.length - (i + 1);
-        const andMoreText = `...and ${remaining} more`;
-
-        if (remaining > 0 && nextTotal + andMoreText.length > MAX_LENGTH) {
-          break;
+        if (
+          description.length > 0 &&
+          description.length + entry.length > MAX_LENGTH
+        ) {
+          pages.push(description);
+          description = '';
         }
 
-        description += entry + '\n';
-        totalLength = nextTotal;
-        shownCount++;
+        description += entry;
       }
 
-      if (shownCount < requests.length) {
-        description += `...and ${requests.length - shownCount} more`;
+      if (description.length) {
+        pages.push(description);
+      }
+
+      if (requestedPage > pages.length) {
+        return message.reply(
+          pages.length === 1
+            ? 'There is only 1 page'
+            : `Page ${requestedPage} does not exist. There are ${pages.length} pages.`,
+        );
       }
 
       const embed = new EmbedBuilder()
         .setTitle('Top requested songs')
-        .setDescription(description)
+        .setDescription(pages[requestedPage - 1])
         .setColor(DEFAULT_COLOR);
+
+      if (pages.length > 1) {
+        embed
+          .setAuthor({ name: `Page ${requestedPage} of ${pages.length}` })
+          .setFooter({
+            text: `${ENV.PREFIX}top <page> to view a specific page`,
+          });
+      }
 
       message.channel.send({
         embeds: [embed],
